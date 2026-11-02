@@ -23,6 +23,8 @@
 // Secrets (wrangler secret put …): MOODLE_ICS_URL, APP_PASSWORD
 
 const COOKIE = "planner_session";
+// Served without login so a phone can show the home-screen icon and install the app.
+const PUBLIC_FILES = new Set(["/manifest.webmanifest", "/apple-touch-icon.png", "/icon-512.png", "/app-icon.svg"]);
 const SESSION_DAYS = 60;
 const MAX_UPLOAD = 20_000_000;
 const MAX_STATE = 8_000_000;
@@ -503,6 +505,8 @@ function sessionCookie(value, maxAge, request) {
 const LOGIN_PAGE = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My Space</title>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="My Space">
 <style>
 :root{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,Arial,sans-serif;color:#303036;color-scheme:light dark}
 body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;box-sizing:border-box;
@@ -660,7 +664,7 @@ export default {
       }
     }
     // Everything else (the app and its files) needs a login too.
-    if (!(await isAuthed(request, env))) {
+    if (!PUBLIC_FILES.has(url.pathname) && !(await isAuthed(request, env))) {
       return new Response(LOGIN_PAGE, {
         status: 401,
         headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", ...SECURITY_HEADERS },

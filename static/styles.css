@@ -492,7 +492,7 @@ body:has(.personal-view:not([hidden])) .topbar{height:76px}
 .personal-time-axis{position:sticky;left:0;z-index:1;background:#faf8f7;border-right:1px solid #eee9e7}
 .personal-time-axis span{position:absolute;right:10px;color:#a1989c;font-size:10px;transform:translateY(-5px)}
 .personal-time-axis span.is-midnight{transform:none}
-.personal-day-track{position:relative;border-right:1px solid #f0ebea;background-color:#fff;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 47px,#eee8e6 47px,#eee8e6 48px);cursor:crosshair;touch-action:none;user-select:none}
+.personal-day-track{position:relative;border-right:1px solid #f0ebea;background-color:#fff;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 47px,#eee8e6 47px,#eee8e6 48px);cursor:crosshair;touch-action:pan-x pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .personal-day-track.is-alt{background-color:#fcfaf9}
 .personal-day-track::before{content:"";position:absolute;top:var(--hover-slot,0);left:50%;width:7px;height:7px;border-radius:50%;background:#a97975;opacity:0;pointer-events:none;transform:translate(-50%,-50%)}
 .personal-day-track::after{content:attr(data-hover-time);position:absolute;top:var(--hover-slot,0);right:8px;padding:5px 6px;border-radius:5px;background:#5f5055;color:#fff;font-size:10px;line-height:1;opacity:0;pointer-events:none;transform:translateY(-50%)}
@@ -627,4 +627,64 @@ html[data-theme="night"] .space-switch a[aria-current="page"]{background:#4b393d
 html[data-theme="night"] .logout-button{color:#b8b1bb}
 html[data-theme="night"] .logout-button:hover{background:#30313d;color:#e0d6dc}
 @media(max-width:900px){.refresh-app-label{display:none}.logout-button{padding:8px}}
-@media(max-width:640px){.topbar{flex-wrap:wrap;height:auto;padding:12px 0 22px;row-gap:10px}.space-switch{order:3;width:100%;justify-content:center}.space-switch a{flex:1;text-align:center}.brand span{display:none}}
+@media(max-width:640px){body.app-fixed .topbar{flex-wrap:wrap;height:auto!important;padding:10px 0 12px;row-gap:10px}.space-switch{order:3;width:100%;justify-content:center}.space-switch a{flex:1;text-align:center}.brand span{display:none}}
+
+/* Fixed page: the window never scrolls; only calendars, lists and the study sidebar do. */
+html:has(body.app-fixed){height:100%;overflow:hidden;overscroll-behavior:none}
+body.app-fixed{height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none}
+body.app-fixed .site-shell{height:100dvh;min-height:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body.app-fixed .topbar{flex:none}
+body.app-fixed #main-content{display:flex;flex:1;min-height:0;flex-direction:column}
+body.app-fixed .footer{display:none}
+body.app-fixed :is(.study-view,.personal-view):not([hidden]){display:flex;flex:1;min-height:0;flex-direction:column;padding-top:4px;padding-bottom:16px}
+body.app-fixed .study-header{flex:none;margin:4px 0 14px}
+body.app-fixed .study-header h1{font-size:clamp(28px,4dvh,40px)}
+/* Study_ETH */
+body.app-fixed .study-layout{flex:1;min-height:0;align-items:stretch}
+body.app-fixed .study-sidebar{position:static;min-height:0;overflow:auto;overscroll-behavior:contain}
+body.app-fixed .study-content{display:flex;min-height:0;flex-direction:column;overflow:hidden}
+body.app-fixed :is(.study-content-heading,.study-status){flex:none}
+body.app-fixed #study-calendar-panel:not([hidden]){display:flex;flex:1;min-height:0;flex-direction:column}
+body.app-fixed :is(.calendar-toolbar,.calendar-weekdays){flex:none}
+body.app-fixed .calendar-weekdays{margin-bottom:6px}
+body.app-fixed .calendar-grid{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;align-content:start;padding:2px 2px 4px}
+body.app-fixed #study-assignment-panel:not([hidden]){flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+/* Schedule */
+body.app-fixed .personal-panel{display:flex;flex:1;min-height:0;flex-direction:column;margin-top:0}
+body.app-fixed :is(.personal-weekbar,.personal-hint){flex:none}
+body.app-fixed .personal-calendar-scroll{flex:1;height:auto;min-height:0;overscroll-behavior:contain}
+.personal-day-track.is-pressing::before,.personal-day-track.is-pressing::after{opacity:1}
+.personal-day-track.is-pressing::before{animation:press-grow .45s ease-out forwards}
+@keyframes press-grow{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(2.6)}}
+
+/* Phones: compact header and sidebar so the calendar gets the height. */
+@media(max-width:760px){
+ body.app-fixed .study-header{display:none}
+ body.app-fixed .study-layout{grid-template-rows:auto minmax(0,1fr);gap:10px}
+ body.app-fixed .study-sidebar{max-height:24dvh;padding:6px}
+ body.app-fixed .study-sidebar .study-add-course{display:none}
+ body.app-fixed .study-sidebar .sidebar-heading{margin:6px 10px 2px}
+ body.app-fixed .study-content{padding:12px 10px}
+ body.app-fixed .study-content-heading h2{font-size:22px}
+ body.app-fixed .study-status{margin:2px 0 8px}
+ body.app-fixed .calendar-toolbar{margin-bottom:6px}
+}
+@media(max-width:600px){
+ body.app-fixed .personal-view .study-header{display:none}
+ body.app-fixed .personal-panel{padding:10px;border-radius:16px}
+ body.app-fixed .personal-weekbar{gap:6px}
+ body.app-fixed .personal-weekbar h2{font-size:18px}
+ body.app-fixed .personal-hint{margin:6px 0;font-size:11px}
+ body.app-fixed .personal-calendar-scroll{height:auto}
+ body.app-fixed :is(.study-view,.personal-view):not([hidden]){padding-bottom:10px}
+}
+/* Phone week bar: [+ Add schedule | Month Week] then [‹ | This week | ›]. */
+@media(max-width:600px){
+ body.app-fixed .personal-weekbar{align-items:stretch}
+ body.app-fixed .personal-week-actions{display:grid;grid-template-columns:34px 1fr auto 34px;gap:6px;width:100%}
+ body.app-fixed #personal-add-task{grid-column:1/3;grid-row:1}
+ body.app-fixed .personal-view-switch{grid-column:3/5;grid-row:1;margin-right:0}
+ body.app-fixed #personal-prev-week{grid-column:1;grid-row:2}
+ body.app-fixed #personal-this-week{grid-column:2/4;grid-row:2}
+ body.app-fixed #personal-next-week{grid-column:4;grid-row:2}
+}

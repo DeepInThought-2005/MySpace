@@ -1670,7 +1670,39 @@ let personalReturnFocus = null;
 let personalCalendarOpened = false;
 let personalTimeSelection = null;
 
+// Adding by dragging starts only after a long press, so a plain swipe scrolls the calendar
+// (on phones) and a stray click adds nothing. Hold still, then drag to set the length.
+const personalLongPressMs = 450;
+let personalLongPress = null;
+
+function cancelPersonalLongPress() {
+  const press = personalLongPress;
+  if (!press) return;
+  personalLongPress = null;
+  clearTimeout(press.timer);
+  press.track.classList.remove('is-pressing');
+}
+
+function armPersonalLongPress(event, track, date) {
+  if (event.button !== 0 || !event.isPrimary || event.target.closest('.personal-task')) return;
+  clearPersonalTimeSelection();
+  const press = { track, date, pointerId: event.pointerId, x: event.clientX, y: event.clientY, timer: 0 };
+  press.timer = setTimeout(() => {
+    if (personalLongPress !== press) return;
+    cancelPersonalLongPress();
+    navigator.vibrate?.(12);
+    startPersonalTimeSelection({ button: 0, isPrimary: true, target: track, pointerId: press.pointerId, clientY: press.y, preventDefault() {} }, track, date);
+  }, personalLongPressMs);
+  // Show which slot is being pressed (touch screens have no hover to show it).
+  const minute = Math.min(23 * 60 + 45, Math.max(0, Math.floor((event.clientY - track.getBoundingClientRect().top) / (personalHourHeight / 4)) * 15));
+  track.style.setProperty('--hover-slot', `${minute / 60 * personalHourHeight}px`);
+  track.dataset.hoverTime = timeFor(minute);
+  track.classList.add('is-pressing');
+  personalLongPress = press;
+}
+
 function clearPersonalTimeSelection() {
+  cancelPersonalLongPress();
   const selection = personalTimeSelection;
   if (!selection) return;
   personalTimeSelection = null;
@@ -1705,7 +1737,7 @@ function startPersonalTimeSelection(event, track, date) {
   track.append(preview);
   track.classList.add('is-selecting');
   personalTimeSelection = { track, date, preview, anchor, pointerId: event.pointerId, initialY: event.clientY, clientY: event.clientY, dragged: false, frame: null };
-  track.setPointerCapture(event.pointerId);
+  try { track.setPointerCapture(event.pointerId); } catch { /* The pointer already ended; pointerup is handled below. */ }
   updatePersonalTimeSelection(event.clientY);
   let previousTime;
   const scrollSelection = timestamp => {
@@ -1735,6 +1767,9 @@ document.addEventListener('keydown', event => {
   }
 });
 window.addEventListener('blur', clearPersonalTimeSelection);
+// Once a long press has started a selection, finger movement resizes it instead of scrolling.
+personalScroll.addEventListener('touchmove', event => { if (personalTimeSelection) event.preventDefault(); }, { passive: false });
+personalScroll.addEventListener('scroll', cancelPersonalLongPress, { passive: true });
 
 function localDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -1904,6 +1939,11 @@ function renderPersonalWeek() {
     track.setAttribute('role', 'button');
     track.setAttribute('aria-label', `Choose a time on ${new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(date)}`);
     track.addEventListener('pointermove', event => {
+      const press = personalLongPress;
+      if (press?.track === track && press.pointerId === event.pointerId) {
+        if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > 8) cancelPersonalLongPress();
+        return;
+      }
       if (personalTimeSelection?.track === track && personalTimeSelection.pointerId === event.pointerId) {
         updatePersonalTimeSelection(event.clientY);
         return;
@@ -1913,8 +1953,10 @@ function renderPersonalWeek() {
       track.style.setProperty('--hover-slot', `${minute / 60 * personalHourHeight}px`);
       track.dataset.hoverTime = timeFor(minute);
     });
-    track.addEventListener('pointerdown', event => startPersonalTimeSelection(event, track, key));
+    track.addEventListener('pointerdown', event => armPersonalLongPress(event, track, key));
+    track.addEventListener('contextmenu', event => { if (personalLongPress || personalTimeSelection) event.preventDefault(); });
     track.addEventListener('pointerup', event => {
+      if (personalLongPress?.pointerId === event.pointerId) { cancelPersonalLongPress(); return; }
       const selection = personalTimeSelection;
       if (selection?.track !== track || selection.pointerId !== event.pointerId) return;
       updatePersonalTimeSelection(event.clientY);
@@ -2047,7 +2089,7 @@ function renderPersonalCalendar() {
   document.getElementById('personal-next-week').setAttribute('aria-label', monthView ? 'Next month' : 'Next week');
   document.getElementById('personal-hint').textContent = monthView
     ? 'Select a day to add a task. Select a task to change it.'
-    : 'Drag to choose a time interval. Select a task to change it.';
+    : 'Long-press a time to add a schedule; keep holding and drag to set its length. Select a task to change it.';
   if (monthView) renderPersonalMonth();
   else renderPersonalWeek();
 }
