@@ -717,8 +717,11 @@ html[data-theme="night"] body.app-fixed .day-more{background:#45404f;color:#e2cf
  body.app-fixed .calendar-grid{grid-auto-rows:minmax(48px,1fr)}
  body.app-fixed .calendar-day{padding:5px;gap:3px}
  body.app-fixed .day-previews{display:none}
- body.app-fixed .day-dots{display:flex;flex-wrap:wrap;gap:3px;width:100%}
- body.app-fixed .day-dot{width:6px;height:6px;border-radius:50%}
+ body.app-fixed .day-count{display:none}
+ body.app-fixed .day-dots{display:flex;flex-wrap:nowrap;gap:0;width:100%;padding-left:1px}
+ body.app-fixed .day-dots .day-more-badge{min-width:14px;height:14px;padding:0 3px;font-size:9px;box-shadow:0 0 0 1.5px #fbf9f8}
+ body.app-fixed .day-dots .day-more-badge+.day-more-badge{margin-left:-3px}
+ html[data-theme="night"] body.app-fixed .day-dots .day-more-badge{box-shadow:0 0 0 1.5px #2a2c36}
 }
 
 /* List of one day's items (from "+N more", or tapping a day on a phone). */

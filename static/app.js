@@ -1420,13 +1420,21 @@ function renderCalendar() {
     });
     button.append(previews);
     if (count) {
+      // Phones show these instead of titles: one coloured circle per status with its count.
       const dots = document.createElement('span');
       dots.className = 'day-dots';
+      const tally = new Map([['not_started', 0], ['in_progress', 0], ['done', 0]]);
       dailyAssignments.forEach(assignment => {
-        const dot = document.createElement('span');
-        dot.className = 'day-dot';
-        dot.dataset.status = assignmentStatus(assignment);
-        dots.append(dot);
+        const status = assignmentStatus(assignment);
+        tally.set(status, (tally.get(status) || 0) + 1);
+      });
+      tally.forEach((n, status) => {
+        if (!n) return;
+        const badge = document.createElement('span');
+        badge.className = 'day-more-badge';
+        badge.dataset.status = status;
+        badge.textContent = n;
+        dots.append(badge);
       });
       button.append(dots);
     }
