@@ -759,3 +759,27 @@ html[data-theme="night"] .status-segments .status-option[aria-pressed="true"]{ba
 
 /* Days with items open their list when clicked, so show that they're clickable. */
 body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
+
+/* Schedule week on phones: Mon–Fri fill the screen; swipe left for Sat/Sun. */
+@media(max-width:600px){
+ body.app-fixed .personal-calendar-scroll{container-type:inline-size;scroll-snap-type:x proximity;scroll-padding-left:40px}
+ body.app-fixed .personal-week-calendar{grid-template-columns:40px repeat(7,calc((100cqw - 40px) / 5));min-width:0}
+ body.app-fixed .personal-calendar-corner{left:0;z-index:3}
+ body.app-fixed :is(.personal-day-heading,.personal-day-track){scroll-snap-align:start}
+ body.app-fixed .personal-day-heading{font-size:10px}
+ body.app-fixed .personal-day-heading strong{font-size:13px}
+ body.app-fixed .personal-day-heading.is-today strong{min-width:22px;height:22px}
+ body.app-fixed .personal-time-axis span{right:5px;font-size:9px}
+ body.app-fixed .personal-day-track{--task-inset:2px}
+ body.app-fixed .personal-task{padding:2px 4px;border-radius:6px}
+ body.app-fixed .personal-task{container-type:inline-size}
+ body.app-fixed .personal-task strong{font-size:10px;white-space:normal;overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto;text-overflow:clip}
+ body.app-fixed .personal-task span,body.app-fixed .personal-task small{font-size:9px}
+}
+/* Very thin cards (overlapping events side by side): one clipped line, details in the editor. */
+@container (max-width:36px){
+ body.app-fixed .personal-task strong{white-space:nowrap;overflow:hidden;hyphens:none;-webkit-hyphens:none}
+ body.app-fixed .personal-task span,body.app-fixed .personal-task small{display:none}
+}
+/* The ✓/↻ markers sit inside the title; keep them title-sized everywhere. */
+.personal-task strong .personal-task-marks{font-size:inherit;opacity:1}

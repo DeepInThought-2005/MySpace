@@ -2097,13 +2097,20 @@ function renderPersonalWeek() {
       button.type = 'button';
       button.style.top = `${top}px`;
       button.style.height = `${height}px`;
-      button.style.left = `calc(${column / columns * 100}% + 5px)`;
-      button.style.right = `calc(${(columns - column - 1) / columns * 100}% + 5px)`;
+      button.style.left = `calc(${column / columns * 100}% + var(--task-inset, 5px))`;
+      button.style.right = `calc(${(columns - column - 1) / columns * 100}% + var(--task-inset, 5px))`;
       button.setAttribute('aria-label', `${task.title}, ${task.start} to ${task.end}${task.description ? `, ${task.description}` : ''}${isDone ? ', done' : ''}${task.recurrence ? ', repeats weekly' : ''}. Edit task`);
       button.title = [task.title, task.description, `${task.start}–${task.end}`, task.recurrence ? 'Repeats every week' : ''].filter(Boolean).join('\n');
       const duration = minutesFor(task.end) - minutesFor(task.start);
       const title = document.createElement('strong');
-      title.textContent = `${isDone ? '✓ ' : ''}${task.recurrence ? '↻ ' : ''}${task.title}`;
+      // Markers in their own span so very thin cards can drop them and keep the title.
+      if (isDone || task.recurrence) {
+        const marks = document.createElement('span');
+        marks.className = 'personal-task-marks';
+        marks.textContent = `${isDone ? '✓ ' : ''}${task.recurrence ? '↻ ' : ''}`;
+        title.append(marks);
+      }
+      title.append(task.title);
       button.append(title);
       if (duration >= 60 && (!task.description || duration >= 90)) {
         const time = document.createElement('span');
