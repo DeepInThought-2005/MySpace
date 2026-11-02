@@ -6,8 +6,7 @@ A study planner that imports deadlines from your Moodle calendar and lets you ad
 
 - **Moodle import**: a Cloudflare cron trigger fetches your Moodle calendar export (iCal) every 10 minutes. The **Refresh** button syncs on demand. Past events are kept even after they drop out of Moodle's "recent & upcoming" window.
 - **Calendar**: month, week and list views, coloured by course. "opens" events are hidden by default.
-- **Recurring tasks**: once, daily, weekly (pick weekdays) or monthly, every *N* days/weeks/months, with optional end date, time and duration. Click a day in the calendar to add a task starting that day.
-- **Next 14 days**: sidebar list of upcoming deadlines and tasks, with checkboxes to mark them done.
+- **Recurring tasks**: once, daily, weekly (pick weekdays) or monthly, every *N* days/weeks/months, with optional end date, time and duration. Click a day in the calendar to add a task starting that day. Click any event to see details or mark it done.
 
 ## How it's built
 

@@ -10,7 +10,6 @@
   --accent-soft: rgba(75, 123, 236, 0.12);
   --accent-text: #ffffff;
   --danger: #d6455d;
-  --soon: #fff3e3;
   --radius: 18px;
   --radius-md: 12px;
   --radius-sm: 9px;
@@ -45,7 +44,6 @@
     --accent: #6b93f2;
     --accent-soft: rgba(107, 147, 242, 0.14);
     --danger: #ff7a8a;
-    --soon: #33291a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
     --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
     color-scheme: dark;
@@ -136,21 +134,8 @@ body {
 
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 6px; }
 
-.upcoming li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
-  transition: background var(--ease);
-}
-.upcoming li + li { margin-top: 2px; }
-.upcoming li:hover { background: var(--surface-2); }
-.upcoming li.soon { background: var(--soon); }
-.upcoming input { margin-top: 4px; }
 .u-title { font-weight: 550; overflow-wrap: anywhere; }
 .u-sub { color: var(--muted); font-size: 12px; }
-.is-done .u-title { text-decoration: line-through; color: var(--muted); }
 
 input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
 

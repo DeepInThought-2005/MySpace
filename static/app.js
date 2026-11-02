@@ -294,41 +294,6 @@ function renderSync() {
   el.textContent = text;
 }
 
-function renderUpcoming() {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const until = new Date(today.getTime() + 14 * DAY_MS);
-  const items = [];
-  for (const e of visibleMoodle()) {
-    if (e.kind === "opens") continue;
-    const d = new Date(e.start);
-    if (d >= (e.allDay ? today : now) && d < until) {
-      items.push({ key: e.uid, title: e.title, sub: courseLabel(e.course), date: d, allDay: e.allDay, color: courseColor(e.course) });
-    }
-  }
-  for (const inst of taskInstances(today, until)) {
-    if ((inst.end || inst.start) < now && !inst.allDay) continue;
-    items.push({ key: inst.key, title: inst.task.title, sub: "Task", date: inst.start, allDay: inst.allDay, color: inst.task.color });
-  }
-  items.sort((a, b) => a.date - b.date);
-
-  const ul = document.getElementById("upcoming");
-  if (!items.length) {
-    ul.innerHTML = `<li class="empty">Nothing due in the next two weeks.</li>`;
-    return;
-  }
-  ul.innerHTML = items.map((it) => {
-    const done = state.done.has(it.key);
-    const soon = !done && it.date - now < 2 * DAY_MS;
-    return `<li class="${done ? "is-done" : ""} ${soon ? "soon" : ""}">
-      <input type="checkbox" data-key="${esc(it.key)}" ${done ? "checked" : ""} aria-label="Mark done">
-      <span class="dot" style="background:${esc(it.color)}"></span>
-      <div><div class="u-title">${esc(it.title)}</div>
-      <div class="u-sub">${esc(fmtWhen(it.date, it.allDay))} · ${esc(it.sub)}</div></div>
-    </li>`;
-  }).join("");
-}
-
 function renderCourses() {
   const courses = [...new Set(state.events.map((e) => e.course || ""))]
     .sort((a, b) => courseLabel(a).localeCompare(courseLabel(b)));
@@ -370,7 +335,6 @@ function renderTasks() {
 
 function renderAll() {
   renderSync();
-  renderUpcoming();
   renderCourses();
   renderTasks();
   if (calendar) calendar.refetchEvents();
@@ -499,9 +463,6 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 });
 document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(null));
 
-document.getElementById("upcoming").addEventListener("change", (e) => {
-  if (e.target.dataset.key) setDone(e.target.dataset.key, e.target.checked);
-});
 document.getElementById("courses").addEventListener("change", (e) => {
   const c = e.target.dataset.course;
   if (c === undefined) return;
