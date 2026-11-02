@@ -1464,13 +1464,30 @@ function fitDayPreviews() {
       openDayList(day.dataset.date);
     });
     box.append(more);
+    more.textContent = '+0';
     let hidden = 0;
     for (let i = items.length - 1; i >= 0 && box.scrollHeight > box.clientHeight + 1; i--) {
       items[i].hidden = true;
       hidden++;
-      more.textContent = `+${hidden} more`;
     }
-    more.setAttribute('aria-label', `Show all ${items.length} items on ${day.dataset.date}`);
+    // "+2 ●●": one dot per hidden item, coloured by its status (not started / in progress / done).
+    const statuses = items.filter(item => item.hidden).map(item => item.dataset.status);
+    const count = document.createElement('span');
+    count.className = 'day-more-count';
+    count.textContent = `+${hidden}`;
+    const dots = document.createElement('span');
+    dots.className = 'day-more-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    statuses.forEach(status => {
+      const dot = document.createElement('span');
+      dot.className = 'day-dot';
+      dot.dataset.status = status;
+      dots.append(dot);
+    });
+    more.replaceChildren(count, dots);
+    const label = { not_started: 'not started', in_progress: 'in progress', done: 'done' };
+    more.title = `${hidden} more: ${statuses.map(status => label[status] || status).join(', ')}`;
+    more.setAttribute('aria-label', `Show all ${items.length} items on ${day.dataset.date}; ${more.title}`);
   });
 }
 new ResizeObserver(() => fitDayPreviews()).observe(calendarGrid);

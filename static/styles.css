@@ -701,7 +701,13 @@ body.app-fixed .day-preview[hidden]{display:none}
 body.app-fixed .day-preview-time{order:-1;flex:none;font-size:9.5px;font-weight:700;opacity:.85}
 body.app-fixed .day-preview-title{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-line-clamp:unset;line-clamp:unset;font-size:11px;font-weight:700}
 body.app-fixed .day-preview-course{display:none}
-body.app-fixed .day-more{flex:none;width:auto;margin:0;padding:1px 6px;border:0;border-radius:5px;background:rgba(92,76,100,.1);color:#5c4c64;font-size:10px;font-weight:700;text-align:left;cursor:pointer}
+body.app-fixed .day-more{flex:none;display:flex;align-items:center;gap:4px;width:auto;max-width:100%;min-width:0;margin:0;padding:2px 6px;border:0;border-radius:999px;background:rgba(92,76,100,.1);color:#5c4c64;font-size:10px;font-weight:700;line-height:1.2;overflow:hidden;cursor:pointer}
+body.app-fixed .day-more-count{flex:none}
+body.app-fixed .day-more-dots{display:flex;gap:2px;min-width:0;overflow:hidden}
+body.app-fixed .day-more-dots .day-dot{flex:none;width:6px;height:6px;border-radius:50%}
+body.app-fixed .day-dot[data-status="not_started"]{background:#c56870}
+body.app-fixed .day-dot[data-status="in_progress"]{background:#d89c43}
+body.app-fixed .day-dot[data-status="done"]{background:#68a57f}
 body.app-fixed .day-more:hover{background:rgba(92,76,100,.2)}
 html[data-theme="night"] body.app-fixed .day-more{background:#45404f;color:#e2cfe9}
 @media(max-width:1300px){body.app-fixed .day-preview-time{display:none}}
