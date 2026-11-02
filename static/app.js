@@ -1470,23 +1470,22 @@ function fitDayPreviews() {
       items[i].hidden = true;
       hidden++;
     }
-    // "+2 ●●": one dot per hidden item, coloured by its status (not started / in progress / done).
-    const statuses = items.filter(item => item.hidden).map(item => item.dataset.status);
-    const count = document.createElement('span');
-    count.className = 'day-more-count';
-    count.textContent = `+${hidden}`;
-    const dots = document.createElement('span');
-    dots.className = 'day-more-dots';
-    dots.setAttribute('aria-hidden', 'true');
-    statuses.forEach(status => {
-      const dot = document.createElement('span');
-      dot.className = 'day-dot';
-      dot.dataset.status = status;
-      dots.append(dot);
-    });
-    more.replaceChildren(count, dots);
+    // "+ ②①": one coloured circle per status (not started / in progress / done) with how many are hidden.
     const label = { not_started: 'not started', in_progress: 'in progress', done: 'done' };
-    more.title = `${hidden} more: ${statuses.map(status => label[status] || status).join(', ')}`;
+    const tally = new Map(Object.keys(label).map(status => [status, 0]));
+    items.filter(item => item.hidden).forEach(item => tally.set(item.dataset.status, (tally.get(item.dataset.status) || 0) + 1));
+    const plus = document.createElement('span');
+    plus.className = 'day-more-plus';
+    plus.textContent = '+';
+    const badges = [...tally].filter(([, n]) => n).map(([status, n]) => {
+      const badge = document.createElement('span');
+      badge.className = 'day-more-badge';
+      badge.dataset.status = status;
+      badge.textContent = n;
+      return badge;
+    });
+    more.replaceChildren(plus, ...badges);
+    more.title = `${hidden} more: ${[...tally].filter(([, n]) => n).map(([status, n]) => `${n} ${label[status] || status}`).join(', ')}`;
     more.setAttribute('aria-label', `Show all ${items.length} items on ${day.dataset.date}; ${more.title}`);
   });
 }
