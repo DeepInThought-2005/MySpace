@@ -1453,7 +1453,7 @@ document.getElementById('calendar-today').addEventListener('click', () => {
 
 async function loadAssignments(force = false) {
   if (location.protocol === 'file:') {
-    studyStatus.textContent = 'To load Moodle deadlines, run python3 server.py and open http://127.0.0.1:8765.';
+    studyStatus.textContent = 'Open My Space from its web address to load Moodle deadlines.';
     return;
   }
   refreshAssignmentsButton.disabled = true;
@@ -1477,13 +1477,14 @@ async function loadAssignments(force = false) {
     renderCalendar();
     studyStatus.textContent = `${assignments.length} deadlines · Zurich time · Updated ${new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich', timeZoneName: 'short' }).format(new Date())}`;
   } catch {
-    studyStatus.textContent = 'Moodle deadlines are unavailable. Check the local server, then refresh.';
+    studyStatus.textContent = 'Moodle deadlines are unavailable right now. Try Refresh in a moment.';
   } finally {
     refreshAssignmentsButton.disabled = false;
   }
 }
 
 refreshAssignmentsButton.addEventListener('click', () => loadAssignments(true));
+setInterval(() => { if (!document.hidden && assignmentsLoaded) loadAssignments(); }, 10 * 60 * 1000);
 
 const studyTaskDialog = document.getElementById('study-task-dialog');
 const studyTaskForm = document.getElementById('study-task-form');
@@ -2327,9 +2328,33 @@ document.getElementById('personal-skip-week').addEventListener('click', () => {
   if (savePersonalTasks(next)) personalTaskDialog.close();
 });
 
+// The main page shows one of these two spaces; any other address opens the last one used.
+const studySpaceId = 'space-mv6d516l-yqzp9';
+const mainSpaces = [
+  { id: studySpaceId, title: 'Study_ETH', icon: 'notes', color: '#e7e9f6' },
+  { id: personalSpaceId, title: 'Schedule', icon: 'notes', color: '#e9e5f6' }
+];
+function lastMainSpace() {
+  try { return localStorage.getItem('my-space-main-space') === personalSpaceId ? personalSpaceId : studySpaceId; }
+  catch { return studySpaceId; }
+}
+
 function renderRoute() {
-  const [route, section, ...courseParts] = location.hash.slice(1).split('/');
-  const space = spaces.find(item => item.id === route);
+  let [route, section, ...courseParts] = location.hash.slice(1).split('/');
+  if (!mainSpaces.some(item => item.id === route)) {
+    route = lastMainSpace();
+    section = undefined;
+    courseParts = [];
+    history.replaceState(null, '', `#${route}`);
+  }
+  try { localStorage.setItem('my-space-main-space', route); } catch { /* Defaults to Study_ETH next time. */ }
+  const space = spaces.find(item => item.id === route) || mainSpaces.find(item => item.id === route);
+  for (const main of mainSpaces) {
+    const link = document.getElementById(main.id === studySpaceId ? 'switch-study' : 'switch-schedule');
+    link.textContent = (spaces.find(item => item.id === main.id) || main).title;
+    if (main.id === route) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
   const isStudy = Boolean(space && isEthSpace(space));
   const isPersonal = Boolean(space && (space.id === personalSpaceId || space.title.trim().toLowerCase() === 'personal'));
   const fileStudy = isStudy && location.protocol === 'file:';
@@ -2377,7 +2402,7 @@ async function putSharedState(snapshot) {
 }
 
 function scheduleSharedSave(key) {
-  if (!sharedStateReady || !location.origin.startsWith('http://127.0.0.1:8765')) return;
+  if (!sharedStateReady) return;
   const value = JSON.parse(JSON.stringify(sharedSnapshot([key])[key]));
   sharedSaveChain = sharedSaveChain.then(() => putSharedState({ [key]: value })).then(result => {
     sharedRevision = result.revision;
@@ -2448,7 +2473,6 @@ async function refreshSharedState(allowHidden = false) {
 
 async function initializeSharedState() {
   await loadChoice();
-  if (location.origin !== 'http://127.0.0.1:8765') return;
   await refreshSharedState(true);
   const sync = () => refreshSharedState();
   setInterval(sync, 4000);
@@ -2486,6 +2510,11 @@ refreshAppButton.addEventListener('click', async () => {
     }
   }
   await refreshAppContent();
+});
+
+document.getElementById('logout').addEventListener('click', async () => {
+  try { await sharedSaveChain; await fetch('/api/logout', { method: 'POST' }); } catch { /* Reload shows the login page either way. */ }
+  window.location.reload();
 });
 
 window.addEventListener('hashchange', () => {

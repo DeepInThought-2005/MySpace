@@ -1,28 +1,40 @@
-# MySpace — Study Planner
+# MySpace
 
-A study planner with two sections, switchable at the top:
+My Space on Cloudflare Workers: one page with two spaces you switch between at the top.
 
-- **Tasks**: deadlines imported from your Moodle calendar plus your own recurring to-dos.
-- **Schedule**: a week planner where you block out time with a start and end time, once or repeating.
+- **Study_ETH**: Moodle deadlines in a month calendar and an assignment list, per-course pages, your own study tasks, progress (Not started / In progress / Done), and files you attach to each assignment (PDF preview included).
+- **Schedule**: week and month planner. Drag to block out time, weekly repeats with an end date, per-schedule colours, "remove this week", and done-for-this-date.
 
-It runs on Cloudflare Workers.
+Day/Night mode and the background (scenes, colour or your own photo) are kept too, and everything is shared across your devices.
 
-**Live:** <https://myspace-planner.louis-zhou.workers.dev> (password protected)
+**Live:** <https://myspace-planner.louis-zhou.workers.dev> (password protected; the whole site, not just the data)
 
-- **Moodle import**: a Cloudflare cron trigger fetches your Moodle calendar export (iCal) every 10 minutes. The **Refresh** button syncs on demand. Past events are kept even after they drop out of Moodle's "recent & upcoming" window.
-- **Calendar**: month, week and list views, coloured by course. "opens" events are hidden by default.
-- **Recurring tasks**: once, daily, weekly (pick weekdays) or monthly, every *N* days/weeks/months, with optional end date, time and duration. Click a day in the calendar to add a task starting that day. Click any event to see details or mark it done.
-- **Schedule**: day / week / month views. Add blocks with **+ Schedule** or by dragging across the week view; each has a start and end time, optional location, and can repeat daily, weekly (chosen weekdays) or monthly.
+The front end in `static/` comes from the local My Space app (`Personal website` project). The Worker replaces that app's `server.py`.
 
 ## How it's built
 
 | Part | Where |
 | --- | --- |
-| UI (HTML/CSS/JS, FullCalendar from CDN) | `static/`, served as Workers static assets |
+| Front end (HTML/CSS/JS, PDF.js in `vendor/pdfjs`) | `static/`, served as Workers static assets after login |
 | API, Moodle sync, login | `src/worker.js` |
-| Storage | Workers KV namespace `PLANNER` (`moodle_cache`, `sync`, `courses`, `tasks`, `schedules`, `state`) |
-| Schedule | cron `*/10 * * * *` in `wrangler.toml` |
+| Storage | Workers KV namespace `PLANNER` (`shared_state`, `moodle_assignments`, `courses`, `sync`, `file_index`, `file:<id>`, `background_image`) |
+| Schedule | cron `*/10 * * * *` in `wrangler.toml` refreshes Moodle deadlines; the page picks them up every 10 minutes, and **Refresh** fetches immediately |
 | Secrets | `MOODLE_ICS_URL`, `APP_PASSWORD` (Cloudflare secrets, never in git) |
+
+Moodle course codes such as `252-0057-00L` are turned into course names by looking them up in the ETH course catalogue (VVZ) the first time they appear.
+
+### API
+
+| Route | Purpose |
+| --- | --- |
+| `GET/PUT /api/state` | Shared app state: spaces, Schedule entries, study tasks/courses, progress, theme, colours |
+| `GET /api/assignments[?refresh=1]` | Moodle deadlines (every deadline ever seen; `refresh=1` syncs first) |
+| `GET/POST /api/assignment-files?assignment=…` | List / upload your files for an assignment (max 20 MB) |
+| `GET /api/assignment-files/<id>` | Download a file |
+| `GET/PUT/DELETE /api/background-image` | Background photo |
+| `POST /api/login`, `POST /api/logout` | Session cookie (60 days) |
+
+Writes from other origins are rejected, and input is validated with the same rules as the original `server.py`.
 
 ## Deploying
 
@@ -33,7 +45,7 @@ npm install
 npx wrangler login
 ```
 
-First time only — create the KV namespace, put its id in `wrangler.toml`, then set the secrets:
+First time only: create the KV namespace, put its id in `wrangler.toml`, then set the secrets.
 
 ```bash
 npx wrangler kv namespace create PLANNER
@@ -53,9 +65,19 @@ Then, and after every change:
 npm run deploy
 ```
 
-Get the Moodle URL in Moodle under *Calendar → Import or export calendars → Export calendar*: choose **All events** and **Recent and next 60 days**, then click **Get calendar URL**. It contains a private token — treat it like a password.
+Get the Moodle URL in Moodle under *Calendar → Import or export calendars → Export calendar*: choose **All events** and **Recent and next 60 days**, then click **Get calendar URL**. It contains a private token, so treat it like a password.
 
 Changing `APP_PASSWORD` logs out every device.
+
+## Importing data from the local app
+
+`scripts/import_local_data.py` copies a local My Space install's `.private` data (shared state, Moodle archive, uploaded files, background photo) into KV. It only reads the source and overwrites the same keys in KV.
+
+```bash
+python3 scripts/import_local_data.py "/path/to/Personal website" --remote
+```
+
+Use `--local` instead to fill the `npm run dev` storage.
 
 ## Local development
 
@@ -69,4 +91,4 @@ Fill in `.dev.vars`, then:
 npm run dev
 ```
 
-Open <http://127.0.0.1:8780>. Local data lives in `.wrangler/` and is separate from the live site. To trigger the cron locally, open <http://127.0.0.1:8780/__scheduled?cron=*/10+*+*+*+*>.
+Open <http://127.0.0.1:8780>. Local data lives in `.wrangler/` and is separate from the live site. To run the Moodle sync locally, open <http://127.0.0.1:8780/__scheduled?cron=*/10+*+*+*+*>.

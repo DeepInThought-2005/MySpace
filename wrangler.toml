@@ -2,19 +2,20 @@ name = "myspace-planner"
 main = "src/worker.js"
 compatibility_date = "2025-10-01"
 
-# The UI (index.html, app.js, style.css). Requests that don't match a file
-# (e.g. /api/*) fall through to the Worker.
+# The My Space front end. The Worker runs first for every request so the
+# app and its files are only served after login.
 [assets]
 directory = "./static"
 binding = "ASSETS"
+run_worker_first = true
 
-# Tasks, done state and the Moodle event cache.
+# Shared app state, Moodle deadlines, uploaded files and the background photo.
 # Created with:  npx wrangler kv namespace create PLANNER
 [[kv_namespaces]]
 binding = "PLANNER"
 id = "4e681d368fdd4a33b9c448561b64b00c"
 
-# Pull the Moodle calendar every 10 minutes.
+# Refresh the Moodle deadlines every 10 minutes.
 [triggers]
 crons = ["*/10 * * * *"]
 

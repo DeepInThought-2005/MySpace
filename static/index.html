@@ -5,12 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f4efe9" />
     <title>My Space</title>
-    <script>
-      // Keep old file and localhost bookmarks on the same saved spaces as the Mac app.
-      if (location.protocol === 'file:' || (location.hostname === 'localhost' && location.port === '8765')) {
-        location.replace(`http://127.0.0.1:8765/${location.hash}`);
-      }
-    </script>
     <link rel="icon" type="image/svg+xml" href="app-icon.svg?v=8" />
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
@@ -34,8 +28,9 @@
 
     <div class="site-shell">
       <header class="topbar">
-        <a class="brand" href="#home" aria-label="My Space home"><img class="brand-mark" src="app-icon.svg?v=8" width="33" height="33" alt="" /><span>my space<span class="brand-dot">.</span></span></a>
-        <div class="topbar-actions"><button class="refresh-app-button" id="refresh-app" type="button" title="Load the latest app files and shared data"><span class="refresh-app-icon" aria-hidden="true">↻</span><span class="refresh-app-label">Refresh App</span></button><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to night mode" aria-pressed="false"><span id="theme-icon" aria-hidden="true">☾</span><span id="theme-label">Night</span></button><button class="customize-button" id="open-customizer" type="button"><svg><use href="#icon-sparkle" /></svg><span>Customize background</span></button></div>
+        <a class="brand" href="#" aria-label="My Space"><img class="brand-mark" src="app-icon.svg?v=8" width="33" height="33" alt="" /><span>my space<span class="brand-dot">.</span></span></a>
+        <nav class="space-switch" id="space-switch" aria-label="Spaces"><a id="switch-study" href="#space-mv6d516l-yqzp9">Study_ETH</a><a id="switch-schedule" href="#space-mv6h7fv7-ef7n7">Schedule</a></nav>
+        <div class="topbar-actions"><button class="refresh-app-button" id="refresh-app" type="button" title="Load the latest app files and shared data"><span class="refresh-app-icon" aria-hidden="true">↻</span><span class="refresh-app-label">Refresh App</span></button><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to night mode" aria-pressed="false"><span id="theme-icon" aria-hidden="true">☾</span><span id="theme-label">Night</span></button><button class="customize-button" id="open-customizer" type="button"><svg><use href="#icon-sparkle" /></svg><span>Customize background</span></button><button class="logout-button" id="logout" type="button">Log out</button></div>
       </header>
 
       <main id="main-content">
@@ -56,7 +51,6 @@
         </section>
 
         <section class="personal-view" id="personal-view" aria-labelledby="personal-title" hidden>
-          <a class="back-link" href="#home">← All spaces</a>
           <header class="study-header"><h1 id="personal-title">Personal</h1></header>
           <div class="personal-panel">
             <div class="personal-weekbar"><h2 id="personal-week-label" aria-live="polite"></h2><div class="personal-week-actions"><button id="personal-add-task" class="study-add-task" type="button">+ Add schedule</button><div class="personal-view-switch" role="group" aria-label="Calendar view"><button id="personal-month-view" type="button" aria-pressed="false">Month</button><button id="personal-week-view" type="button" aria-pressed="true">Week</button></div><button id="personal-prev-week" type="button" aria-label="Previous week">‹</button><button id="personal-this-week" type="button">This week</button><button id="personal-next-week" type="button" aria-label="Next week">›</button></div></div>
@@ -66,9 +60,8 @@
         </section>
 
         <section class="study-view" id="study-view" aria-labelledby="study-title" hidden>
-          <a class="back-link" href="#home">← All spaces</a>
           <header class="study-header"><h1 id="study-title">Study at ETH</h1></header>
-          <div class="connection-notice" id="connection-notice" hidden><strong>Open the connected Study page</strong><p>Moodle deadlines are available through the local site.</p><a id="connected-study-link" href="http://127.0.0.1:8765/#space-mv6d516l-yqzp9">Open assignments →</a></div>
+          <div class="connection-notice" id="connection-notice" hidden><strong>Open the connected Study page</strong><p>Moodle deadlines are available through the local site.</p><a id="connected-study-link" href="#space-mv6d516l-yqzp9">Open assignments →</a></div>
           <div class="study-layout" id="study-workspace">
             <aside class="study-sidebar">
               <nav aria-label="Study navigation">
@@ -101,7 +94,7 @@
     <div class="panel-overlay" id="panel-overlay" hidden></div>
     <aside class="customizer" id="customizer" aria-labelledby="customizer-title" aria-modal="true" role="dialog" hidden>
       <div class="panel-header"><div><span class="panel-eyebrow">MAKE IT YOURS</span><h2 id="customizer-title">Your background</h2></div><button class="icon-button" id="close-customizer" type="button" aria-label="Close background settings"><svg><use href="#icon-close" /></svg></button></div>
-      <p class="panel-description">Set the mood for your personal space. Your choice is saved on this Mac.</p>
+      <p class="panel-description">Set the mood for your personal space. Your choice is saved in My Space and shared across your devices.</p>
       <div class="panel-group"><h3>Choose a scene</h3><div class="preset-grid" id="preset-grid"><button class="preset preset-sunrise" type="button" data-preset="sunrise"><span class="preset-preview"></span><span>Sunrise</span></button><button class="preset preset-lilac" type="button" data-preset="lilac"><span class="preset-preview"></span><span>Lilac</span></button><button class="preset preset-sky" type="button" data-preset="sky"><span class="preset-preview"></span><span>Open sky</span></button><button class="preset preset-sage" type="button" data-preset="sage"><span class="preset-preview"></span><span>Sage</span></button></div></div>
       <div class="panel-group"><h3>Pick a color</h3><label class="color-control"><input id="background-color" type="color" value="#f4efe9" /><span>Choose any color</span><span class="control-chevron">↗</span></label></div>
       <div class="panel-group"><h3>Use your own photo</h3><label class="upload-control" for="background-upload" tabindex="0"><span class="upload-icon">↑</span><span><strong>Upload an image</strong><small>JPG, PNG, or WebP</small></span></label><input id="background-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden /><button class="remove-photo" id="remove-photo" type="button" hidden>Remove uploaded photo</button></div>

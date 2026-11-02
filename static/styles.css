@@ -610,3 +610,21 @@ html[data-theme="night"] .study-editor-dialog select.name-input{appearance:none;
 html[data-theme="night"] .study-add-course{border-color:#58444a;background:#37303a;color:#e8c5bb}
 html[data-theme="night"] .study-add-course::before{background:#554047;color:#f1cec4}
 html[data-theme="night"] .study-add-course:hover{border-color:#80605c;background:#453640;color:#ffe3d9}
+
+/* Cloudflare edition: one page with a Study_ETH / Schedule switcher in the top bar. */
+.topbar{gap:14px}
+.space-switch{display:flex;gap:3px;padding:4px;border:1px solid rgba(255,255,255,.8);border-radius:999px;background:rgba(255,255,255,.6);box-shadow:0 5px 24px rgba(75,62,57,.05);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.space-switch a{padding:8px 18px;border-radius:999px;color:#6f666b;font-size:13px;font-weight:700;letter-spacing:-.01em;transition:background .2s,color .2s,box-shadow .2s}
+.space-switch a:hover{color:#39333a}
+.space-switch a[aria-current="page"]{background:#fff;color:#39333a;box-shadow:0 2px 10px rgba(60,45,50,.12)}
+.space-switch a:focus-visible{outline:3px solid #806cc0;outline-offset:2px}
+.logout-button{min-height:38px;padding:8px 12px;border:0;border-radius:999px;background:transparent;color:#7a7076;font-size:12px;font-weight:600}
+.logout-button:hover{background:rgba(255,255,255,.6);color:#4a4248}
+.logout-button:focus-visible{outline:3px solid #806cc0;outline-offset:3px}
+html[data-theme="night"] .space-switch{background:rgba(39,41,51,.7);border-color:#514653}
+html[data-theme="night"] .space-switch a{color:#b8b1bb}
+html[data-theme="night"] .space-switch a[aria-current="page"]{background:#4b393d;color:#f0c5b9;box-shadow:none}
+html[data-theme="night"] .logout-button{color:#b8b1bb}
+html[data-theme="night"] .logout-button:hover{background:#30313d;color:#e0d6dc}
+@media(max-width:900px){.refresh-app-label{display:none}.logout-button{padding:8px}}
+@media(max-width:640px){.topbar{flex-wrap:wrap;height:auto;padding:12px 0 22px;row-gap:10px}.space-switch{order:3;width:100%;justify-content:center}.space-switch a{flex:1;text-align:center}.brand span{display:none}}
