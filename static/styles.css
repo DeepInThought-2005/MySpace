@@ -720,10 +720,16 @@ body.app-fixed .day-dot[data-status="done"]{background:#68a57f}
  body.app-fixed .calendar-day{padding:5px;gap:3px}
  body.app-fixed .day-previews{display:none}
  body.app-fixed .day-count{display:none}
- body.app-fixed .day-dots{display:flex;flex-wrap:nowrap;gap:0;width:100%;padding-left:1px}
- body.app-fixed .day-dots .day-more-badge{min-width:14px;height:14px;padding:0 3px;font-size:9px;box-shadow:0 0 0 1.5px #fbf9f8}
- body.app-fixed .day-dots .day-more-badge+.day-more-badge{margin-left:-3px}
- html[data-theme="night"] body.app-fixed .day-dots .day-more-badge{box-shadow:0 0 0 1.5px #2a2c36}
+ /* One corner per status (the date stays top-left): not started top-right,
+    in progress bottom-left, done bottom-right. */
+ body.app-fixed .calendar-day{position:relative}
+ body.app-fixed .day-dots{position:absolute;inset:0;display:block;pointer-events:none}
+ body.app-fixed .day-dots .day-more-badge{position:absolute;min-width:14px;height:14px;padding:0 3px;font-size:9px;box-shadow:none}
+ body.app-fixed .calendar-day.is-today .day-number{width:19px;height:19px;margin:-2px 0 0 -2px;font-size:10px}
+ body.app-fixed .day-dots .day-more-badge+.day-more-badge{margin-left:0}
+ body.app-fixed .day-dots .day-more-badge[data-status="not_started"]{top:3px;right:3px}
+ body.app-fixed .day-dots .day-more-badge[data-status="in_progress"]{bottom:3px;left:3px}
+ body.app-fixed .day-dots .day-more-badge[data-status="done"]{bottom:3px;right:3px}
 }
 
 /* List of one day's items (from "+N more", or tapping a day on a phone). */
