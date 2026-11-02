@@ -791,3 +791,7 @@ body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
  .personal-day-track:hover::before,.personal-day-track:hover::after{opacity:0}
  .personal-day-track.is-pressing::before,.personal-day-track.is-pressing::after{opacity:1}
 }
+
+/* Not zoomable: only panning gestures (no pinch or double-tap zoom). Descendants can only
+   narrow this further, e.g. the Schedule day columns' long-press handling. */
+html{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}

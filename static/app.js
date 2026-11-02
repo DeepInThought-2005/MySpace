@@ -2679,6 +2679,13 @@ refreshAppButton.addEventListener('click', async () => {
   await refreshAppContent();
 });
 
+// The app is not zoomable: block pinch (iOS Safari gesture events, which ignore the viewport
+// tag, and trackpad pinch, which arrives as ctrl+wheel). Keyboard zoom stays available.
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(type, event => event.preventDefault(), { passive: false });
+}
+window.addEventListener('wheel', event => { if (event.ctrlKey) event.preventDefault(); }, { passive: false });
+
 document.getElementById('logout').addEventListener('click', async () => {
   try { await sharedSaveChain; await fetch('/api/logout', { method: 'POST' }); } catch { /* Reload shows the login page either way. */ }
   window.location.reload();
