@@ -1,0 +1,23 @@
+name = "myspace-planner"
+main = "src/worker.js"
+compatibility_date = "2025-10-01"
+
+# The UI (index.html, app.js, style.css). Requests that don't match a file
+# (e.g. /api/*) fall through to the Worker.
+[assets]
+directory = "./static"
+binding = "ASSETS"
+
+# Tasks, done state and the Moodle event cache.
+# Created with:  npx wrangler kv namespace create PLANNER
+[[kv_namespaces]]
+binding = "PLANNER"
+id = "4e681d368fdd4a33b9c448561b64b00c"
+
+# Pull the Moodle calendar every 10 minutes.
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Secrets (not in this file):
+#   npx wrangler secret put MOODLE_ICS_URL
+#   npx wrangler secret put APP_PASSWORD

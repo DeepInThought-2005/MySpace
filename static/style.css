@@ -84,6 +84,18 @@ body {
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { color: var(--danger); }
+.btn.ghost { border-color: transparent; color: var(--muted); }
+
+.login { width: min(340px, calc(100vw - 32px)); }
+.login label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-weight: 550; font-size: 13px; }
+.login input {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
 .btn .spin { display: inline-block; }
 .btn.busy .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

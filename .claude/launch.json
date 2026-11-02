@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "planner",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["server.py"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 8780
     }
   ]

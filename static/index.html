@@ -16,6 +16,7 @@
         <span class="spin" aria-hidden="true">↻</span> Refresh
       </button>
       <button id="add-task-btn" class="btn primary" type="button">+ Task</button>
+      <button id="logout-btn" class="btn ghost" type="button" title="Log out">Log out</button>
     </div>
   </header>
 
@@ -130,6 +131,21 @@
         <button type="button" class="btn primary" id="ev-close">Close</button>
       </div>
     </div>
+  </dialog>
+
+  <!-- Login -->
+  <dialog id="login-dialog" class="login">
+    <form id="login-form">
+      <h2>Study Planner</h2>
+      <label>Password
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p id="login-error" class="error" hidden></p>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="submit" class="btn primary">Log in</button>
+      </div>
+    </form>
   </dialog>
 
   <script src="app.js"></script>

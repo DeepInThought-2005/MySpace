@@ -36,9 +36,42 @@ async function api(path, options = {}) {
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+  if (res.status === 401 && path !== "/api/login") {
+    await requireLogin();
+    return api(path, options);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
+}
+
+// One shared login prompt, however many requests hit 401 at once.
+let loginPromise = null;
+function requireLogin() {
+  if (loginPromise) return loginPromise;
+  const dlg = document.getElementById("login-dialog");
+  const form = document.getElementById("login-form");
+  const err = document.getElementById("login-error");
+  loginPromise = new Promise((resolve) => {
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      err.hidden = true;
+      try {
+        await api("/api/login", { method: "POST", body: { password: form.password.value } });
+        form.reset();
+        dlg.close();
+        loginPromise = null;
+        resolve();
+      } catch (e) {
+        err.textContent = e.message;
+        err.hidden = false;
+      }
+    };
+  });
+  dlg.addEventListener("cancel", (e) => e.preventDefault()); // Esc can't dismiss it
+  if (!dlg.open) dlg.showModal();
+  form.password.focus();
+  return loginPromise;
 }
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -450,6 +483,10 @@ for (const dlg of [taskDialog, eventDialog]) {
 // ------------------------------------------------------------ wiring
 
 document.getElementById("refresh-btn").addEventListener("click", refreshNow);
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  await api("/api/logout", { method: "POST" });
+  location.reload();
+});
 document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(null));
 
 document.getElementById("upcoming").addEventListener("change", (e) => {

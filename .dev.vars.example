@@ -1,0 +1,3 @@
+# Local secrets for `npm run dev` — copy to .dev.vars (gitignored).
+MOODLE_ICS_URL="https://moodle-app2.let.ethz.ch/calendar/export_execute.php?userid=YOUR_ID&authtoken=YOUR_TOKEN&preset_what=all&preset_time=recentupcoming"
+APP_PASSWORD="choose-a-local-password"
