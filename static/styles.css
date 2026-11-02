@@ -764,7 +764,6 @@ body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
 @media(max-width:600px){
  body.app-fixed .personal-calendar-scroll{container-type:inline-size;scroll-snap-type:x proximity;scroll-padding-left:40px}
  body.app-fixed .personal-week-calendar{grid-template-columns:40px repeat(7,calc((100cqw - 40px) / 5));min-width:0}
- body.app-fixed .personal-calendar-corner{left:0;z-index:3}
  body.app-fixed :is(.personal-day-heading,.personal-day-track){scroll-snap-align:start}
  body.app-fixed .personal-day-heading{font-size:10px}
  body.app-fixed .personal-day-heading strong{font-size:13px}
@@ -783,3 +782,12 @@ body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
 }
 /* The ✓/↻ markers sit inside the title; keep them title-sized everywhere. */
 .personal-task strong .personal-task-marks{font-size:inherit;opacity:1}
+
+/* The pinned time column must stay above events (z 1) and the selection (z 2) when the
+   week is scrolled sideways; the corner above it (z 4) and day headings (z 2) stay on top. */
+.personal-time-axis{z-index:3}
+/* Touch screens: the hover time marker would stick after a tap; show it only while long-pressing. */
+@media(hover:none){
+ .personal-day-track:hover::before,.personal-day-track:hover::after{opacity:0}
+ .personal-day-track.is-pressing::before,.personal-day-track.is-pressing::after{opacity:1}
+}
