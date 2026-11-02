@@ -739,3 +739,14 @@ body.app-fixed .day-dot[data-status="done"]{background:#68a57f}
 html[data-theme="night"] .day-list-item[data-status="not_started"]{background:#593238;color:#ffc2c7}
 html[data-theme="night"] .day-list-item[data-status="in_progress"]{background:#51422e;color:#f0ce94}
 html[data-theme="night"] .day-list-item[data-status="done"]{background:#2c493d;color:#a4d8b7}
+
+/* Assignment window on phones: all three statuses side by side, one tap to change. */
+.status-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+.status-segments .status-option{justify-content:center;gap:6px;min-height:38px;padding:8px 6px;border:1px solid #eee5e2;border-radius:999px;background:#fff;white-space:nowrap}
+.status-segments .status-option[aria-pressed="true"]{border-color:var(--status-ring,#e9b8bd);background:var(--status-tint);color:var(--status-ink);font-weight:800}
+.status-segments .status-option[data-status="in_progress"]{--status-ring:#edcf9e}
+.status-segments .status-option[data-status="done"]{--status-ring:#b9d8c5}
+.status-segments .status-option[aria-pressed="true"]:after{content:none}
+html[data-theme="night"] .status-segments .status-option{background:#30313d;border-color:#514653;color:#e0d6dc}
+html[data-theme="night"] .status-segments .status-option[aria-pressed="true"]{background:var(--status-tint);color:var(--status-ink);border-color:var(--status-ring,#97545d)}
+#assignment-detail-progress:has(.status-segments){width:100%}

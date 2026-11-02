@@ -926,6 +926,47 @@ function assignmentProgressKey(assignment) {
   return assignment.studyTaskId ? `${assignment.id}@${assignment.occurrenceDate || assignment.date}` : assignment.id;
 }
 
+function setAssignmentStatus(assignment, value, index) {
+  progress[assignmentProgressKey(assignment)] = value;
+  const saved = saveProgress();
+  renderCalendar();
+  if (assignmentDialog.open && openedAssignmentId === assignment.id) {
+    document.getElementById('assignment-detail-progress').replaceChildren(createDialogStatus(assignment));
+    document.querySelector('#assignment-detail-progress :is(summary, .status-option[aria-pressed="true"])')?.focus();
+  } else {
+    renderAssignments();
+    assignmentList.querySelectorAll('.status-picker summary')[index]?.focus();
+  }
+  if (!saved) studyStatus.textContent = 'Progress changed for now, but this browser could not save it.';
+}
+
+// In the assignment window on phones, show all three statuses as buttons: a dropdown
+// there opens below the short info area and its last option needs scrolling.
+const narrowAssignmentDialog = window.matchMedia('(max-width: 760px)');
+function createDialogStatus(assignment) {
+  if (!narrowAssignmentDialog.matches) return createStatusPicker(assignment);
+  const current = assignmentStatus(assignment);
+  const group = document.createElement('div');
+  group.className = 'status-segments';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', `Progress for ${assignment.title}`);
+  statusOptions.forEach(option => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'status-option';
+    button.dataset.status = option.value;
+    button.setAttribute('aria-pressed', String(option.value === current));
+    const dot = document.createElement('span');
+    dot.className = 'status-dot';
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.append(dot, label);
+    button.addEventListener('click', () => setAssignmentStatus(assignment, option.value));
+    group.append(button);
+  });
+  return group;
+}
+
 function createStatusPicker(assignment, index) {
   const picker = document.createElement('details');
   picker.className = 'status-picker';
@@ -954,19 +995,7 @@ function createStatusPicker(assignment, index) {
     const optionLabel = document.createElement('span');
     optionLabel.textContent = option.label;
     button.append(optionDot, optionLabel);
-    button.addEventListener('click', () => {
-      progress[assignmentProgressKey(assignment)] = option.value;
-      const saved = saveProgress();
-      renderCalendar();
-      if (assignmentDialog.open && openedAssignmentId === assignment.id) {
-        document.getElementById('assignment-detail-progress').replaceChildren(createStatusPicker(assignment));
-        document.querySelector('#assignment-detail-progress summary').focus();
-      } else {
-        renderAssignments();
-        assignmentList.querySelectorAll('.status-picker summary')[index]?.focus();
-      }
-      if (!saved) studyStatus.textContent = 'Progress changed for now, but this browser could not save it.';
-    });
+    button.addEventListener('click', () => setAssignmentStatus(assignment, option.value, index));
     menu.append(button);
   });
   picker.append(menu);
@@ -1247,7 +1276,7 @@ function openAssignmentDetails(assignment) {
     submissionLink.textContent = submission.direct ? 'Open submission ↗' : 'View in Moodle ↗';
     document.getElementById('assignment-submission-note').textContent = submission.direct ? 'Submit your work on Moodle.' : 'Opens this deadline in Moodle. Follow its assignment link to submit.';
   }
-  document.getElementById('assignment-detail-progress').replaceChildren(createStatusPicker(assignment));
+  document.getElementById('assignment-detail-progress').replaceChildren(createDialogStatus(assignment));
   clearFilePreview();
   document.getElementById('assignment-attachments').replaceChildren();
   document.getElementById('assignment-file-preview').replaceChildren();
