@@ -1958,8 +1958,9 @@ function firstEventScrollTop(dates) {
     const start = minutesFor(task.start);
     if (earliest === null || start < earliest) earliest = start;
   }));
-  // Half an hour above the first event; 07:30 for an empty week.
-  return Math.max(0, ((earliest ?? 8 * 60) - 30) / 60 * personalHourHeight);
+  // The full hour of the first event (08:15 → 08:00); 08:00 for an empty week. The 10px
+  // margin keeps that hour's label clear of the sticky day headings.
+  return Math.max(0, Math.floor((earliest ?? 8 * 60) / 60) * personalHourHeight - 10);
 }
 
 function personalOccurrencesOnDate(key, tasks = personalTasks) {
