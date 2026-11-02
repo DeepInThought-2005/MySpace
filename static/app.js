@@ -1472,8 +1472,8 @@ function renderCalendar() {
     button.addEventListener('click', () => {
       selectedDate = key;
       renderCalendar();
-      // Phones show dots instead of titles, so a tap lists the day's items.
-      if (count && phoneCalendar.matches) openDayList(key);
+      // Clicking a day (anywhere but on one item's line) lists everything due that day.
+      if (count) openDayList(key);
     });
     calendarGrid.append(button);
   }
@@ -1483,7 +1483,6 @@ function renderCalendar() {
 
 // ---- Month cells: show what fits, then "+N more" (opens the day's full list).
 const calendarDayItems = new Map();
-const phoneCalendar = window.matchMedia('(max-width: 520px)');
 
 function fitDayPreviews() {
   calendarGrid.querySelectorAll('.calendar-day').forEach(day => {

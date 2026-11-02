@@ -756,3 +756,6 @@ html[data-theme="night"] .day-list-item[data-status="done"]{background:#2c493d;c
 html[data-theme="night"] .status-segments .status-option{background:#30313d;border-color:#514653;color:#e0d6dc}
 html[data-theme="night"] .status-segments .status-option[aria-pressed="true"]{background:var(--status-tint);color:var(--status-ink);border-color:var(--status-ring,#97545d)}
 #assignment-detail-progress:has(.status-segments){width:100%}
+
+/* Days with items open their list when clicked, so show that they're clickable. */
+body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
