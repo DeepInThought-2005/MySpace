@@ -1786,6 +1786,9 @@ let editingPersonalTaskId = null;
 let editingPersonalOccurrenceDate = null;
 let personalReturnFocus = null;
 let personalCalendarOpened = false;
+// The week view opens scrolled to that week's first event, and keeps following it (e.g. when
+// shared data arrives after a refresh) until the user scrolls or touches the calendar.
+let personalWeekAutoScroll = true;
 let personalTimeSelection = null;
 
 // Adding by dragging starts only after a long press, so a plain swipe scrolls the calendar
@@ -1888,6 +1891,9 @@ window.addEventListener('blur', clearPersonalTimeSelection);
 // Once a long press has started a selection, finger movement resizes it instead of scrolling.
 personalScroll.addEventListener('touchmove', event => { if (personalTimeSelection) event.preventDefault(); }, { passive: false });
 personalScroll.addEventListener('scroll', cancelPersonalLongPress, { passive: true });
+for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+  personalScroll.addEventListener(type, () => { personalWeekAutoScroll = false; }, { passive: true });
+}
 
 function localDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -1944,6 +1950,16 @@ function validPersonalTask(task) {
     localDateKey(dateFromKey(day)) === day && utcDayNumber(day) >= firstDay && utcDayNumber(day) <= lastDay &&
     (utcDayNumber(day) - firstDay) % 7 === 0) &&
     new Set(recurrence.exceptions).size === recurrence.exceptions.length;
+}
+
+function firstEventScrollTop(dates) {
+  let earliest = null;
+  dates.forEach(date => personalOccurrencesOnDate(localDateKey(date)).forEach(task => {
+    const start = minutesFor(task.start);
+    if (earliest === null || start < earliest) earliest = start;
+  }));
+  // Half an hour above the first event; 07:30 for an empty week.
+  return Math.max(0, ((earliest ?? 8 * 60) - 30) / 60 * personalHourHeight);
 }
 
 function personalOccurrencesOnDate(key, tasks = personalTasks) {
@@ -2128,7 +2144,7 @@ function renderPersonalWeek() {
     fragment.append(track);
   });
   personalCalendar.replaceChildren(fragment);
-  personalScroll.scrollTop = personalCalendarOpened ? currentScroll : 5 * personalHourHeight;
+  personalScroll.scrollTop = personalWeekAutoScroll ? firstEventScrollTop(dates) : currentScroll;
   personalCalendarOpened = true;
 }
 
@@ -2408,23 +2424,24 @@ document.getElementById('personal-week-view').addEventListener('click', () => {
   }
   personalCalendarView = 'week';
   localStorage.setItem('my-space-personal-calendar-view', personalCalendarView);
+  personalWeekAutoScroll = true;
   renderPersonalCalendar();
-  personalScroll.scrollTop = 5 * personalHourHeight;
 });
 document.getElementById('personal-prev-week').addEventListener('click', () => {
   if (personalCalendarView === 'month') personalMonthDate.setMonth(personalMonthDate.getMonth() - 1);
-  else personalWeekStart.setDate(personalWeekStart.getDate() - 7);
+  else { personalWeekStart.setDate(personalWeekStart.getDate() - 7); personalWeekAutoScroll = true; }
   renderPersonalCalendar();
 });
 document.getElementById('personal-next-week').addEventListener('click', () => {
   if (personalCalendarView === 'month') personalMonthDate.setMonth(personalMonthDate.getMonth() + 1);
-  else personalWeekStart.setDate(personalWeekStart.getDate() + 7);
+  else { personalWeekStart.setDate(personalWeekStart.getDate() + 7); personalWeekAutoScroll = true; }
   renderPersonalCalendar();
 });
 document.getElementById('personal-this-week').addEventListener('click', () => {
   const today = new Date();
   personalWeekStart = mondayFor(today);
   personalMonthDate = new Date(today.getFullYear(), today.getMonth(), 1, 12);
+  personalWeekAutoScroll = true;
   renderPersonalCalendar();
   if (personalCalendarView === 'month') personalScroll.scrollTop = 0;
 });
@@ -2476,6 +2493,7 @@ personalTaskForm.addEventListener('submit', event => {
   personalMonthDate = new Date(displayDay.getFullYear(), displayDay.getMonth(), 1, 12);
   if (savePersonalTasks(next)) {
     rememberPersonalRepeatUntil();
+    personalWeekAutoScroll = false;
     personalScroll.scrollTop = personalCalendarView === 'month' ? 0 : Math.max(0, minutesFor(task.start) / 60 * personalHourHeight - 120);
     personalTaskDialog.close();
   }
