@@ -75,6 +75,36 @@ body {
   padding: 14px 24px 4px;
 }
 .topbar h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+.brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+/* Tasks / Schedule switcher */
+.mode-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+}
+.mode-switch button {
+  font: inherit;
+  font-weight: 500;
+  padding: 5px 16px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease);
+}
+.mode-switch button:hover { color: var(--text); }
+.mode-switch button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); }
+.mode-switch button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Show only the current section's controls (also used inside the item form) */
+body[data-mode="tasks"] .only-schedule,
+body[data-mode="schedule"] .only-tasks { display: none !important; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 10px 10px 0; }
 .sync { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sync-status { color: var(--muted); font-size: 13px; margin-right: 4px; }
 .sync-status.err { color: var(--danger); cursor: help; }
@@ -218,6 +248,8 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
   backdrop-filter: blur(2px);
 }
 .fc .box.kind-opens { border-style: dashed; border-left-style: solid; }
+.fc .fc-timegrid-event.box .fc-event-main { padding: 4px 6px; }
+.fc .fc-highlight { background: var(--accent-soft); border-radius: 7px; }
 .fc .kind-opens .fc-event-title { font-style: italic; opacity: 0.8; }
 .fc .fc-daygrid-event.box { white-space: normal; margin-top: 2px; }
 .fc .box .fc-event-main { padding: 2px 5px; color: var(--text); }

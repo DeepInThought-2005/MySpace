@@ -6,7 +6,8 @@
 // - Everything is stored in the PLANNER KV namespace:
 //     moodle_cache  { uid: event }    every Moodle event seen so far
 //     sync          { lastSync, lastAttempt, error }
-//     tasks         [ task ]          user recurring tasks
+//     tasks         [ task ]          user recurring tasks (to-dos, optional time + duration)
+//     schedules     [ schedule ]      user schedule blocks (start + end time, optionally recurring)
 //     state         { done: [key] }   Moodle uids / "<taskId>@<YYYY-MM-DD>" marked done
 //     courses       { category: name }  course titles looked up in the ETH course catalogue
 // - /api/* requires a session cookie obtained with APP_PASSWORD.
@@ -177,24 +178,45 @@ async function eventsPayload(env) {
   };
 }
 
-// ---------------------------------------------------------------- tasks
+// ---------------------------------------------------------------- tasks & schedules
 
 class BadRequest extends Error {}
 
-const TASK_FIELDS = ["title", "notes", "color", "startDate", "endDate", "time",
-  "durationMin", "freq", "interval", "byDay"];
+const RECURRENCE_FIELDS = ["title", "notes", "color", "startDate", "endDate", "freq", "interval", "byDay"];
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Fields and validation shared by tasks and schedules.
+function cleanRecurring(body, extraFields) {
+  const item = {};
+  for (const k of [...RECURRENCE_FIELDS, ...extraFields]) if (k in body) item[k] = body[k];
+  if (!String(item.title ?? "").trim()) throw new BadRequest("title is required");
+  if (!["once", "daily", "weekly", "monthly"].includes(item.freq)) throw new BadRequest("freq must be once, daily, weekly or monthly");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(item.startDate ?? ""))) throw new BadRequest("startDate must be YYYY-MM-DD");
+  item.interval = Math.max(1, parseInt(item.interval, 10) || 1);
+  item.byDay = (item.byDay || []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  return item;
+}
 
 function cleanTask(body) {
-  const task = {};
-  for (const k of TASK_FIELDS) if (k in body) task[k] = body[k];
-  if (!String(task.title ?? "").trim()) throw new BadRequest("title is required");
-  if (!["once", "daily", "weekly", "monthly"].includes(task.freq)) throw new BadRequest("freq must be once, daily, weekly or monthly");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(task.startDate ?? ""))) throw new BadRequest("startDate must be YYYY-MM-DD");
-  task.interval = Math.max(1, parseInt(task.interval, 10) || 1);
+  const task = cleanRecurring(body, ["time", "durationMin"]);
   task.durationMin = Math.max(5, parseInt(task.durationMin, 10) || 60);
-  task.byDay = (task.byDay || []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
   return task;
 }
+
+function cleanSchedule(body) {
+  const sched = cleanRecurring(body, ["startTime", "endTime", "location"]);
+  if (!TIME_RE.test(String(sched.startTime ?? "")) || !TIME_RE.test(String(sched.endTime ?? ""))) {
+    throw new BadRequest("start and end time must be HH:MM");
+  }
+  if (sched.endTime <= sched.startTime) throw new BadRequest("end time must be after start time");
+  return sched;
+}
+
+// KV key -> validator, for the /api/<collection> routes.
+const COLLECTIONS = {
+  tasks: { clean: cleanTask, fields: [...RECURRENCE_FIELDS, "time", "durationMin"] },
+  schedules: { clean: cleanSchedule, fields: [...RECURRENCE_FIELDS, "startTime", "endTime", "location"] },
+};
 
 // ---------------------------------------------------------------- auth
 
@@ -266,33 +288,34 @@ async function handleApi(request, env, path) {
     return json(await eventsPayload(env));
   }
 
-  if (path === "/api/tasks" && method === "GET") return json(await getJson(env, "tasks", []));
-
-  if (path === "/api/tasks" && method === "POST") {
-    const task = cleanTask(await request.json());
-    task.id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const tasks = await getJson(env, "tasks", []);
-    tasks.push(task);
-    await putJson(env, "tasks", tasks);
-    return json(task, 201);
-  }
-
-  const m = path.match(/^\/api\/tasks\/([0-9a-f]+)$/);
-  if (m && method === "PUT") {
-    const update = cleanTask(await request.json());
-    const tasks = await getJson(env, "tasks", []);
-    const t = tasks.find((x) => x.id === m[1]);
-    if (!t) return json({ error: "not found" }, 404);
-    for (const k of TASK_FIELDS) if (!(k in update)) delete t[k];
-    Object.assign(t, update);
-    await putJson(env, "tasks", tasks);
-    return json(t);
-  }
-  if (m && method === "DELETE") {
-    const tasks = await getJson(env, "tasks", []);
-    const kept = tasks.filter((x) => x.id !== m[1]);
-    await putJson(env, "tasks", kept);
-    return json({ ok: kept.length !== tasks.length });
+  // /api/tasks, /api/schedules and /api/<collection>/<id>
+  const m = path.match(/^\/api\/(tasks|schedules)(?:\/([0-9a-f]+))?$/);
+  if (m) {
+    const [, name, id] = m;
+    const { clean, fields } = COLLECTIONS[name];
+    const items = await getJson(env, name, []);
+    if (!id && method === "GET") return json(items);
+    if (!id && method === "POST") {
+      const item = clean(await request.json());
+      item.id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+      items.push(item);
+      await putJson(env, name, items);
+      return json(item, 201);
+    }
+    if (id && method === "PUT") {
+      const update = clean(await request.json());
+      const item = items.find((x) => x.id === id);
+      if (!item) return json({ error: "not found" }, 404);
+      for (const k of fields) if (!(k in update)) delete item[k];
+      Object.assign(item, update);
+      await putJson(env, name, items);
+      return json(item);
+    }
+    if (id && method === "DELETE") {
+      const kept = items.filter((x) => x.id !== id);
+      await putJson(env, name, kept);
+      return json({ ok: kept.length !== items.length });
+    }
   }
 
   if (path === "/api/done" && method === "POST") {

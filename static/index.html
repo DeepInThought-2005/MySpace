@@ -9,28 +9,40 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Study Planner</h1>
+    <div class="brand">
+      <h1>Study Planner</h1>
+      <div class="mode-switch" role="tablist" aria-label="Section">
+        <button type="button" role="tab" data-mode="tasks">Tasks</button>
+        <button type="button" role="tab" data-mode="schedule">Schedule</button>
+      </div>
+    </div>
     <div class="sync">
-      <span id="sync-status" class="sync-status">Loading…</span>
-      <button id="refresh-btn" class="btn" type="button" title="Fetch Moodle now">
+      <span id="sync-status" class="sync-status only-tasks">Loading…</span>
+      <button id="refresh-btn" class="btn only-tasks" type="button" title="Fetch Moodle now">
         <span class="spin" aria-hidden="true">↻</span> Refresh
       </button>
-      <button id="add-task-btn" class="btn primary" type="button">+ Task</button>
+      <button id="add-btn" class="btn primary" type="button">+ Task</button>
       <button id="logout-btn" class="btn ghost" type="button" title="Log out">Log out</button>
     </div>
   </header>
 
   <main class="layout">
     <aside class="sidebar">
-      <section>
+      <section class="only-tasks">
         <h2>Courses</h2>
         <ul id="courses" class="courses"></ul>
         <label class="toggle"><input type="checkbox" id="show-opens"> Show "opens" events</label>
       </section>
 
-      <section>
+      <section class="only-tasks">
         <h2>My tasks</h2>
         <ul id="tasks" class="tasks"></ul>
+      </section>
+
+      <section class="only-schedule">
+        <h2>My schedule</h2>
+        <ul id="schedules" class="tasks"></ul>
+        <p class="hint">Tip: drag across the week view to block out time.</p>
       </section>
     </aside>
 
@@ -39,7 +51,7 @@
     </div>
   </main>
 
-  <!-- Add / edit task -->
+  <!-- Add / edit task or schedule (data-kind on the form switches the time fields) -->
   <dialog id="task-dialog">
     <form id="task-form" method="dialog">
       <h2 id="task-dialog-title">New task</h2>
@@ -47,6 +59,15 @@
       <label>Title
         <input name="title" required maxlength="120" placeholder="e.g. Review lecture notes">
       </label>
+
+      <div class="row only-schedule">
+        <label>From
+          <input name="startTime" type="time">
+        </label>
+        <label>To
+          <input name="endTime" type="time">
+        </label>
+      </div>
 
       <div class="row">
         <label>Repeats
@@ -82,7 +103,7 @@
         </label>
       </div>
 
-      <div class="row">
+      <div class="row only-tasks">
         <label><span>Time <small>(blank = all day)</small></span>
           <input name="time" type="time">
         </label>
@@ -92,6 +113,9 @@
       </div>
 
       <div class="row">
+        <label class="only-schedule"><span>Location <small>(optional)</small></span>
+          <input name="location" maxlength="120" placeholder="e.g. HG E 7">
+        </label>
         <label>Colour
           <input name="color" type="color" value="#7c5cff">
         </label>
@@ -119,9 +143,9 @@
       <h2 id="ev-title"></h2>
       <p id="ev-when" class="ev-when"></p>
       <div id="ev-desc" class="ev-desc"></div>
-      <label class="toggle"><input type="checkbox" id="ev-done"> Done</label>
+      <label class="toggle" id="ev-done-row"><input type="checkbox" id="ev-done"> Done</label>
       <div class="actions">
-        <button type="button" class="btn" id="ev-edit" hidden>Edit task</button>
+        <button type="button" class="btn" id="ev-edit" hidden>Edit</button>
         <span class="spacer"></span>
         <button type="button" class="btn primary" id="ev-close">Close</button>
       </div>

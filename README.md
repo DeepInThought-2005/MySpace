@@ -1,12 +1,18 @@
 # MySpace — Study Planner
 
-A study planner that imports deadlines from your Moodle calendar and lets you add your own recurring tasks. It runs on Cloudflare Workers.
+A study planner with two sections, switchable at the top:
+
+- **Tasks**: deadlines imported from your Moodle calendar plus your own recurring to-dos.
+- **Schedule**: a week planner where you block out time with a start and end time, once or repeating.
+
+It runs on Cloudflare Workers.
 
 **Live:** <https://myspace-planner.louis-zhou.workers.dev> (password protected)
 
 - **Moodle import**: a Cloudflare cron trigger fetches your Moodle calendar export (iCal) every 10 minutes. The **Refresh** button syncs on demand. Past events are kept even after they drop out of Moodle's "recent & upcoming" window.
 - **Calendar**: month, week and list views, coloured by course. "opens" events are hidden by default.
 - **Recurring tasks**: once, daily, weekly (pick weekdays) or monthly, every *N* days/weeks/months, with optional end date, time and duration. Click a day in the calendar to add a task starting that day. Click any event to see details or mark it done.
+- **Schedule**: day / week / month views. Add blocks with **+ Schedule** or by dragging across the week view; each has a start and end time, optional location, and can repeat daily, weekly (chosen weekdays) or monthly.
 
 ## How it's built
 
@@ -14,7 +20,7 @@ A study planner that imports deadlines from your Moodle calendar and lets you ad
 | --- | --- |
 | UI (HTML/CSS/JS, FullCalendar from CDN) | `static/`, served as Workers static assets |
 | API, Moodle sync, login | `src/worker.js` |
-| Storage | Workers KV namespace `PLANNER` (`moodle_cache`, `sync`, `tasks`, `state`) |
+| Storage | Workers KV namespace `PLANNER` (`moodle_cache`, `sync`, `courses`, `tasks`, `schedules`, `state`) |
 | Schedule | cron `*/10 * * * *` in `wrangler.toml` |
 | Secrets | `MOODLE_ICS_URL`, `APP_PASSWORD` (Cloudflare secrets, never in git) |
 

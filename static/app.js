@@ -1,14 +1,20 @@
-// Study planner front end. Talks to server.py:
+// Study planner front end. Talks to src/worker.js:
 //   GET  /api/events   cached Moodle events + sync status + done keys
 //   POST /api/refresh  fetch Moodle now
-//   GET/POST/PUT/DELETE /api/tasks  user recurring tasks
+//   GET/POST/PUT/DELETE /api/tasks      user recurring tasks
+//   GET/POST/PUT/DELETE /api/schedules  user schedule blocks (start/end time)
 //   POST /api/done     toggle done for a Moodle uid or "<taskId>@<YYYY-MM-DD>"
+//
+// Two sections share one calendar: "tasks" (Moodle deadlines + tasks) and
+// "schedule" (schedule blocks, week view, drag to create).
 
 const POLL_MS = 60 * 1000; // re-read the server cache; the server itself hits Moodle every 10 min
 
 const state = {
   events: [],
   tasks: [],
+  schedules: [],
+  mode: loadPref("mode", "tasks"),
   done: new Set(),
   courseNames: {},
   sync: {},
@@ -77,6 +83,7 @@ function requireLogin() {
 
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 function parseYmd(s) {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -163,6 +170,22 @@ function taskInstances(from, to) {
   return list;
 }
 
+function atTime(day, hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const base = parseYmd(day);
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m);
+}
+
+function scheduleInstances(from, to) {
+  const list = [];
+  for (const sched of state.schedules) {
+    for (const day of occurrences(sched, from, to)) {
+      list.push({ key: `${sched.id}@${day}`, sched, day, start: atTime(day, sched.startTime), end: atTime(day, sched.endTime) });
+    }
+  }
+  return list;
+}
+
 // ------------------------------------------------------------ data
 
 function visibleMoodle() {
@@ -183,6 +206,10 @@ function applyEvents(data) {
 }
 async function loadTasks() {
   state.tasks = await api("/api/tasks");
+  renderAll();
+}
+async function loadSchedules() {
+  state.schedules = await api("/api/schedules");
   renderAll();
 }
 
@@ -212,8 +239,25 @@ async function setDone(key, done) {
 
 let calendar;
 
+const boxColors = (color) => ({ backgroundColor: color + "2e", borderColor: color + "8c", textColor: "var(--text)" });
+
 function calendarSource(info, success) {
   const out = [];
+  if (state.mode === "schedule") {
+    for (const inst of scheduleInstances(info.start, info.end)) {
+      out.push({
+        id: inst.key,
+        title: inst.sched.title,
+        start: inst.start,
+        end: inst.end,
+        display: "block",
+        ...boxColors(inst.sched.color || "#7c5cff"),
+        classNames: ["box", "kind-schedule"],
+        extendedProps: { source: "schedule", ref: inst, location: inst.sched.location || "" },
+      });
+    }
+    return success(out);
+  }
   for (const e of visibleMoodle()) {
     const done = state.done.has(e.uid);
     const color = courseColor(e.course);
@@ -241,9 +285,7 @@ function calendarSource(info, success) {
       allDay: inst.allDay,
       // Always a box (never the month view's dot style), tinted with the task colour.
       display: "block",
-      backgroundColor: color + "2e",
-      borderColor: color + "8c",
-      textColor: "var(--text)",
+      ...boxColors(color),
       classNames: ["box", "kind-task", inst.done ? "is-done" : ""],
       extendedProps: { source: "task", ref: inst },
     });
@@ -251,26 +293,83 @@ function calendarSource(info, success) {
   success(out);
 }
 
+const narrow = window.matchMedia("(max-width: 760px)").matches;
+
+// View + toolbar per section.
+const MODE_VIEWS = {
+  tasks: {
+    view: narrow ? "listWeek" : "dayGridMonth",
+    toolbar: narrow
+      ? { left: "prev,next", center: "title", right: "listWeek,dayGridMonth" }
+      : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,listMonth" },
+  },
+  schedule: {
+    view: narrow ? "timeGridDay" : "timeGridWeek",
+    toolbar: narrow
+      ? { left: "prev,next", center: "title", right: "timeGridDay,listWeek" }
+      : { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek,dayGridMonth" },
+  },
+};
+
+function onDateClick(info) {
+  const date = info.dateStr.slice(0, 10);
+  if (state.mode !== "schedule") return openItemDialog("task", null, { date });
+  if (info.allDay) return openItemDialog("schedule", null, { date });
+  const start = info.date;
+  const end = new Date(start.getTime() + 60 * 60000);
+  openItemDialog("schedule", null, { date, startTime: hhmm(start), endTime: end.getDate() === start.getDate() ? hhmm(end) : "23:59" });
+}
+
+function onSelect(info) {
+  calendar.unselect();
+  const date = ymd(info.start);
+  if (info.allDay) return openItemDialog("schedule", null, { date });
+  const sameDay = ymd(new Date(info.end.getTime() - 1)) === date;
+  openItemDialog("schedule", null, { date, startTime: hhmm(info.start), endTime: sameDay && hhmm(info.end) !== "00:00" ? hhmm(info.end) : "23:59" });
+}
+
 function initCalendar() {
-  const narrow = window.matchMedia("(max-width: 760px)").matches;
   calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
-    initialView: narrow ? "listWeek" : "dayGridMonth",
+    initialView: MODE_VIEWS[state.mode].view,
+    headerToolbar: MODE_VIEWS[state.mode].toolbar,
+    selectable: state.mode === "schedule",
+    selectMirror: true,
+    // Drag-to-create stays within one day.
+    selectAllow: (sel) => sel.allDay || ymd(sel.start) === ymd(new Date(sel.end.getTime() - 1)),
+    select: onSelect,
+    scrollTime: "08:00:00",
+    allDaySlot: true,
     firstDay: 1,
     height: "100%",
     nowIndicator: true,
     dayMaxEvents: 4,
     // Moodle deadlines are points in time; don't let a 23:59 deadline spill into the next day.
     defaultTimedEventDuration: "00:01",
-    headerToolbar: narrow
-      ? { left: "prev,next", center: "title", right: "listWeek,dayGridMonth" }
-      : { left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,listMonth" },
-    buttonText: { today: "Today", month: "Month", week: "Week", list: "List" },
+    buttonText: { today: "Today", month: "Month", week: "Week", day: "Day", list: "List" },
     eventTimeFormat: { hour: "2-digit", minute: "2-digit", hour12: false },
+    slotLabelFormat: { hour: "2-digit", minute: "2-digit", hour12: false },
+    dayHeaderFormat: narrow ? { weekday: "short" } : { weekday: "short", day: "numeric" },
     events: calendarSource,
     eventClick: (info) => openEventDialog(info.event),
-    dateClick: (info) => openTaskDialog(null, info.dateStr.slice(0, 10)),
+    dateClick: onDateClick,
   });
   calendar.render();
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  savePref("mode", mode);
+  document.body.dataset.mode = mode;
+  for (const b of document.querySelectorAll(".mode-switch [data-mode]")) {
+    b.setAttribute("aria-selected", String(b.dataset.mode === mode));
+  }
+  document.getElementById("add-btn").textContent = mode === "schedule" ? "+ Schedule" : "+ Task";
+  if (calendar) {
+    calendar.setOption("selectable", mode === "schedule");
+    calendar.setOption("headerToolbar", MODE_VIEWS[mode].toolbar);
+    calendar.changeView(MODE_VIEWS[mode].view);
+    calendar.refetchEvents();
+  }
 }
 
 // ------------------------------------------------------------ sidebar
@@ -278,13 +377,12 @@ function initCalendar() {
 function renderSync() {
   const el = document.getElementById("sync-status");
   const s = state.sync;
+  el.classList.toggle("err", !!s.error);
   if (s.error) {
-    el.className = "sync-status err";
     el.textContent = `Sync failed (${relTime(s.lastSync)} last OK)`;
     el.title = s.error;
     return;
   }
-  el.className = "sync-status";
   el.title = s.lastSync ? new Date(s.lastSync).toLocaleString() : "";
   let text = `Moodle synced ${relTime(s.lastSync)}`;
   if (s.lastAttempt && s.refreshSeconds) {
@@ -309,34 +407,48 @@ function renderCourses() {
 
 const FREQ_TEXT = { once: "Once", daily: "day", weekly: "week", monthly: "month" };
 const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-function describeTask(t) {
-  if (t.freq === "once") return `Once · ${parseYmd(t.startDate).toLocaleDateString()}`;
+// "Every week · Mo We · 14:00" — works for tasks and schedules.
+function describeItem(t) {
+  if (t.freq === "once") {
+    const s = `Once · ${parseYmd(t.startDate).toLocaleDateString()}`;
+    return t.startTime ? `${s} · ${t.startTime}–${t.endTime}` : s;
+  }
   let s = t.interval > 1 ? `Every ${t.interval} ${FREQ_TEXT[t.freq]}s` : `Every ${FREQ_TEXT[t.freq]}`;
   if (t.freq === "weekly") {
     const days = (t.byDay && t.byDay.length ? t.byDay : [parseYmd(t.startDate).getDay()]);
     s += " · " + [1, 2, 3, 4, 5, 6, 0].filter((d) => days.includes(d)).map((d) => DAY_NAMES[d]).join(" ");
   }
-  if (t.time) s += ` · ${t.time}`;
+  if (t.startTime) s += ` · ${t.startTime}–${t.endTime}`;
+  else if (t.time) s += ` · ${t.time}`;
   return s;
 }
 
-function renderTasks() {
-  const ul = document.getElementById("tasks");
-  if (!state.tasks.length) {
-    ul.innerHTML = `<li class="empty">No tasks yet. Use <b>+ Task</b> or click a day.</li>`;
+function renderItemList(ulId, items, emptyHtml) {
+  const ul = document.getElementById(ulId);
+  if (!items.length) {
+    ul.innerHTML = `<li class="empty">${emptyHtml}</li>`;
     return;
   }
-  ul.innerHTML = state.tasks.map((t) => `
-    <li><button type="button" data-task="${esc(t.id)}">
+  ul.innerHTML = items.map((t) => `
+    <li><button type="button" data-id="${esc(t.id)}">
       <span class="dot" style="background:${esc(t.color || "#7c5cff")}"></span>
-      <div><div class="u-title">${esc(t.title)}</div><div class="u-sub">${esc(describeTask(t))}</div></div>
+      <div><div class="u-title">${esc(t.title)}</div><div class="u-sub">${esc(describeItem(t))}${t.location ? " · " + esc(t.location) : ""}</div></div>
     </button></li>`).join("");
+}
+
+function renderTasks() {
+  renderItemList("tasks", state.tasks, "No tasks yet. Use <b>+ Task</b> or click a day.");
+}
+function renderSchedules() {
+  const sorted = [...state.schedules].sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+  renderItemList("schedules", sorted, "Nothing scheduled yet. Use <b>+ Schedule</b> or drag in the week view.");
 }
 
 function renderAll() {
   renderSync();
   renderCourses();
   renderTasks();
+  renderSchedules();
   if (calendar) calendar.refetchEvents();
 }
 
@@ -344,7 +456,8 @@ function renderAll() {
 
 const taskDialog = document.getElementById("task-dialog");
 const taskForm = document.getElementById("task-form");
-let editingTaskId = null;
+let editing = { kind: "task", id: null };
+const COLLECTION = { task: "tasks", schedule: "schedules" };
 
 function syncFreqFields() {
   const freq = taskForm.freq.value;
@@ -354,13 +467,24 @@ function syncFreqFields() {
   document.getElementById("interval-unit").textContent = `${FREQ_TEXT[freq]}(s)`;
 }
 
-function openTaskDialog(task, dateStr) {
-  editingTaskId = task ? task.id : null;
+// kind: "task" | "schedule". item: existing one to edit, or null with
+// prefill { date, startTime, endTime } for a new one.
+function openItemDialog(kind, item, prefill = {}) {
+  editing = { kind, id: item ? item.id : null };
+  const isSchedule = kind === "schedule";
   taskForm.reset();
-  document.getElementById("task-dialog-title").textContent = task ? "Edit task" : "New task";
-  document.getElementById("task-delete").hidden = !task;
+  taskForm.dataset.kind = kind;
+  document.getElementById("task-dialog-title").textContent =
+    `${item ? "Edit" : "New"} ${isSchedule ? "schedule" : "task"}`;
+  taskForm.title.placeholder = isSchedule ? "e.g. Analysis II lecture" : "e.g. Review lecture notes";
+  document.getElementById("task-delete").hidden = !item;
   document.getElementById("task-error").hidden = true;
-  const t = task || { freq: "weekly", interval: 1, startDate: dateStr || ymd(new Date()), durationMin: 60, color: "#7c5cff" };
+  taskForm.startTime.required = taskForm.endTime.required = isSchedule;
+  const t = item || {
+    freq: isSchedule ? "once" : "weekly", interval: 1, startDate: prefill.date || ymd(new Date()),
+    durationMin: 60, color: isSchedule ? "#4b7bec" : "#7c5cff",
+    startTime: prefill.startTime || "09:00", endTime: prefill.endTime || "10:00",
+  };
   taskForm.title.value = t.title || "";
   taskForm.freq.value = t.freq;
   taskForm.interval.value = t.interval || 1;
@@ -368,9 +492,12 @@ function openTaskDialog(task, dateStr) {
   taskForm.endDate.value = t.endDate || "";
   taskForm.time.value = t.time || "";
   taskForm.durationMin.value = t.durationMin || 60;
+  taskForm.startTime.value = t.startTime || "";
+  taskForm.endTime.value = t.endTime || "";
+  taskForm.location.value = t.location || "";
   taskForm.color.value = t.color || "#7c5cff";
   taskForm.notes.value = t.notes || "";
-  const days = task ? (t.byDay || []) : [parseYmd(t.startDate).getDay()];
+  const days = item ? (t.byDay || []) : [parseYmd(t.startDate).getDay()];
   for (const cb of taskForm.querySelectorAll("[name=byDay]")) cb.checked = days.includes(Number(cb.value));
   syncFreqFields();
   taskDialog.showModal();
@@ -390,17 +517,22 @@ taskForm.addEventListener("submit", async (ev) => {
     byDay: [...f.querySelectorAll("[name=byDay]:checked")].map((cb) => Number(cb.value)),
     startDate: f.startDate.value,
     endDate: f.freq.value === "once" ? null : (f.endDate.value || null),
-    time: f.time.value || null,
-    durationMin: Number(f.durationMin.value) || 60,
     color: f.color.value,
     notes: f.notes.value.trim(),
   };
+  if (editing.kind === "schedule") {
+    Object.assign(body, { startTime: f.startTime.value, endTime: f.endTime.value, location: f.location.value.trim() });
+  } else {
+    Object.assign(body, { time: f.time.value || null, durationMin: Number(f.durationMin.value) || 60 });
+  }
+  const path = `/api/${COLLECTION[editing.kind]}`;
   try {
     if (body.endDate && body.endDate < body.startDate) throw new Error("End date is before the start date.");
-    if (editingTaskId) await api(`/api/tasks/${editingTaskId}`, { method: "PUT", body });
-    else await api("/api/tasks", { method: "POST", body });
+    if (body.endTime && body.endTime <= body.startTime) throw new Error("End time must be after the start time.");
+    if (editing.id) await api(`${path}/${editing.id}`, { method: "PUT", body });
+    else await api(path, { method: "POST", body });
     taskDialog.close();
-    await loadTasks();
+    await (editing.kind === "schedule" ? loadSchedules() : loadTasks());
   } catch (err) {
     const el = document.getElementById("task-error");
     el.textContent = err.message;
@@ -409,15 +541,15 @@ taskForm.addEventListener("submit", async (ev) => {
 });
 
 document.getElementById("task-delete").addEventListener("click", async () => {
-  if (!editingTaskId || !confirm("Delete this task and all its repeats?")) return;
-  await api(`/api/tasks/${editingTaskId}`, { method: "DELETE" });
+  if (!editing.id || !confirm(`Delete this ${editing.kind} and all its repeats?`)) return;
+  await api(`/api/${COLLECTION[editing.kind]}/${editing.id}`, { method: "DELETE" });
   taskDialog.close();
-  await loadTasks();
+  await (editing.kind === "schedule" ? loadSchedules() : loadTasks());
 });
 
 const eventDialog = document.getElementById("event-dialog");
 let openEventKey = null;
-let openEventTask = null;
+let openEventItem = null; // { kind, item } when the event is editable
 
 function openEventDialog(fcEvent) {
   const { source, ref } = fcEvent.extendedProps;
@@ -428,19 +560,26 @@ function openEventDialog(fcEvent) {
     fmtWhen(fcEvent.start, fcEvent.allDay) + (fcEvent.end && !fcEvent.allDay ? ` – ${fcEvent.end.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}` : "");
   if (source === "moodle") {
     openEventKey = ref.uid;
-    openEventTask = null;
+    openEventItem = null;
     course.textContent = courseLabel(ref.course);
     course.style.color = courseColor(ref.course);
     desc.textContent = ref.description || "";
+  } else if (source === "schedule") {
+    openEventKey = null;
+    openEventItem = { kind: "schedule", item: ref.sched };
+    course.textContent = "Schedule · " + describeItem(ref.sched) + (ref.sched.location ? " · " + ref.sched.location : "");
+    course.style.color = ref.sched.color;
+    desc.textContent = ref.sched.notes || "";
   } else {
     openEventKey = ref.key;
-    openEventTask = ref.task;
-    course.textContent = "My task · " + describeTask(ref.task);
+    openEventItem = { kind: "task", item: ref.task };
+    course.textContent = "My task · " + describeItem(ref.task);
     course.style.color = ref.task.color;
     desc.textContent = ref.task.notes || "";
   }
-  document.getElementById("ev-done").checked = state.done.has(openEventKey);
-  document.getElementById("ev-edit").hidden = !openEventTask;
+  document.getElementById("ev-done-row").hidden = !openEventKey;
+  document.getElementById("ev-done").checked = !!openEventKey && state.done.has(openEventKey);
+  document.getElementById("ev-edit").hidden = !openEventItem;
   eventDialog.showModal();
 }
 
@@ -448,7 +587,7 @@ document.getElementById("ev-done").addEventListener("change", (e) => setDone(ope
 document.getElementById("ev-close").addEventListener("click", () => eventDialog.close());
 document.getElementById("ev-edit").addEventListener("click", () => {
   eventDialog.close();
-  openTaskDialog(openEventTask);
+  openItemDialog(openEventItem.kind, openEventItem.item);
 });
 for (const dlg of [taskDialog, eventDialog]) {
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); }); // click on backdrop
@@ -461,7 +600,12 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
   await api("/api/logout", { method: "POST" });
   location.reload();
 });
-document.getElementById("add-task-btn").addEventListener("click", () => openTaskDialog(null));
+document.getElementById("add-btn").addEventListener("click", () =>
+  openItemDialog(state.mode === "schedule" ? "schedule" : "task", null));
+document.querySelector(".mode-switch").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mode]");
+  if (b && b.dataset.mode !== state.mode) setMode(b.dataset.mode);
+});
 
 document.getElementById("courses").addEventListener("change", (e) => {
   const c = e.target.dataset.course;
@@ -473,8 +617,12 @@ document.getElementById("courses").addEventListener("change", (e) => {
   renderAll();
 });
 document.getElementById("tasks").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-task]");
-  if (btn) openTaskDialog(state.tasks.find((t) => t.id === btn.dataset.task));
+  const btn = e.target.closest("[data-id]");
+  if (btn) openItemDialog("task", state.tasks.find((t) => t.id === btn.dataset.id));
+});
+document.getElementById("schedules").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-id]");
+  if (btn) openItemDialog("schedule", state.schedules.find((t) => t.id === btn.dataset.id));
 });
 const showOpens = document.getElementById("show-opens");
 showOpens.checked = state.showOpens;
@@ -484,8 +632,10 @@ showOpens.addEventListener("change", () => {
   renderAll();
 });
 
+if (!MODE_VIEWS[state.mode]) state.mode = "tasks";
+setMode(state.mode);
 initCalendar();
-Promise.all([loadEvents(), loadTasks()]).catch((err) => {
+Promise.all([loadEvents(), loadTasks(), loadSchedules()]).catch((err) => {
   state.sync = { error: err.message };
   renderSync();
 });
