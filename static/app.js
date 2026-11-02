@@ -10,6 +10,7 @@ const state = {
   events: [],
   tasks: [],
   done: new Set(),
+  courseNames: {},
   sync: {},
   hiddenCourses: loadPref("hiddenCourses", []),
   showOpens: loadPref("showOpens", false),
@@ -87,7 +88,9 @@ function courseColor(course) {
   return COURSE_COLORS[h % COURSE_COLORS.length];
 }
 // "252-0057-00L 2026W" -> "252-0057-00L"
-const courseLabel = (c) => (c || "Other").replace(/\s+\d{4}[WS]$/, "");
+const courseCode = (c) => (c || "Other").replace(/\s+\d{4}[WS]$/, "");
+// Course title from the ETH catalogue when the server found one, else the code.
+const courseLabel = (c) => state.courseNames[c] || courseCode(c);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function fmtWhen(date, allDay) {
@@ -174,6 +177,7 @@ async function loadEvents() {
 function applyEvents(data) {
   state.events = data.events || [];
   state.done = new Set(data.done || []);
+  state.courseNames = data.courses || {};
   state.sync = data;
   renderAll();
 }
@@ -219,23 +223,28 @@ function calendarSource(info, success) {
       start: e.start,
       end: e.end,
       allDay: !!e.allDay,
-      backgroundColor: e.kind === "opens" ? "transparent" : color,
-      borderColor: color,
-      textColor: e.kind === "opens" ? color : "#fff",
-      classNames: [`kind-${e.kind}`, done ? "is-done" : ""],
+      display: "block",
+      backgroundColor: e.kind === "opens" ? "transparent" : color + "2e",
+      borderColor: color + "8c",
+      textColor: "var(--text)",
+      classNames: ["box", `kind-${e.kind}`, done ? "is-done" : ""],
       extendedProps: { source: "moodle", ref: e },
     });
   }
   for (const inst of taskInstances(info.start, info.end)) {
+    const color = inst.task.color || "#7c5cff";
     out.push({
       id: inst.key,
       title: inst.task.title,
       start: inst.start,
       end: inst.end,
       allDay: inst.allDay,
-      backgroundColor: inst.task.color || "#7c5cff",
-      borderColor: inst.task.color || "#7c5cff",
-      classNames: ["kind-task", inst.done ? "is-done" : ""],
+      // Always a box (never the month view's dot style), tinted with the task colour.
+      display: "block",
+      backgroundColor: color + "2e",
+      borderColor: color + "8c",
+      textColor: "var(--text)",
+      classNames: ["box", "kind-task", inst.done ? "is-done" : ""],
       extendedProps: { source: "task", ref: inst },
     });
   }
@@ -321,14 +330,15 @@ function renderUpcoming() {
 }
 
 function renderCourses() {
-  const courses = [...new Set(state.events.map((e) => e.course || ""))].sort();
+  const courses = [...new Set(state.events.map((e) => e.course || ""))]
+    .sort((a, b) => courseLabel(a).localeCompare(courseLabel(b)));
   const ul = document.getElementById("courses");
   if (!courses.length) {
     ul.innerHTML = `<li class="empty">No Moodle events yet.</li>`;
     return;
   }
   ul.innerHTML = courses.map((c) => `
-    <li><label><input type="checkbox" data-course="${esc(c)}" ${state.hiddenCourses.includes(c) ? "" : "checked"}>
+    <li><label title="${esc(courseCode(c))}"><input type="checkbox" data-course="${esc(c)}" ${state.hiddenCourses.includes(c) ? "" : "checked"}>
       <span class="dot" style="background:${courseColor(c)}"></span>${esc(courseLabel(c))}</label></li>`).join("");
 }
 

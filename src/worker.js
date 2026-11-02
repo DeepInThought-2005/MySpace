@@ -8,6 +8,7 @@
 //     sync          { lastSync, lastAttempt, error }
 //     tasks         [ task ]          user recurring tasks
 //     state         { done: [key] }   Moodle uids / "<taskId>@<YYYY-MM-DD>" marked done
+//     courses       { category: name }  course titles looked up in the ETH course catalogue
 // - /api/* requires a session cookie obtained with APP_PASSWORD.
 //
 // Secrets (wrangler secret put …): MOODLE_ICS_URL, APP_PASSWORD
@@ -89,6 +90,45 @@ function parseIcs(text) {
   return events;
 }
 
+// ---------------------------------------------------------------- course names
+
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  auml: "ä", ouml: "ö", uuml: "ü", Auml: "Ä", Ouml: "Ö", Uuml: "Ü", szlig: "ß", eacute: "é", egrave: "è" };
+
+function decodeEntities(s) {
+  return s.replace(/&(#x?[0-9a-f]+|\w+);/gi, (m, e) => {
+    if (e[0] === "#") return String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+    return ENTITIES[e] ?? m;
+  });
+}
+
+// Moodle category "252-0057-00L 2026W" -> "Theoretical Computer Science", via the
+// public ETH course catalogue (VVZ). Returns null when it can't be found.
+async function lookupCourseName(category) {
+  const m = category.match(/^(\d{3}-\d{4}-\d{2}[A-Z]?)\s+(\d{4}[WS])$/);
+  if (!m) return null;
+  const url = "https://www.vvz.ethz.ch/Vorlesungsverzeichnis/sucheLehrangebot.view"
+    + `?lang=en&search=on&seite=0&semkez=${m[2]}&lerneinheitscode=${encodeURIComponent(m[1])}`;
+  const resp = await fetch(url, { headers: { "User-Agent": "MySpace-StudyPlanner/1.0" } });
+  if (!resp.ok) return null;
+  const title = (await resp.text()).match(/lerneinheit\.view\?[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+  return title ? decodeEntities(title[1].replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim() || null : null;
+}
+
+async function resolveCourseNames(env, categories) {
+  const names = await getJson(env, "courses", {});
+  const missing = [...categories].filter((c) => c && !(c in names));
+  if (!missing.length) return;
+  let changed = false;
+  for (const c of missing) {
+    try {
+      const name = await lookupCourseName(c);
+      if (name) { names[c] = name; changed = true; }
+    } catch { /* catalogue unreachable: try again on the next sync */ }
+  }
+  if (changed) await putJson(env, "courses", names);
+}
+
 async function syncMoodle(env) {
   const now = new Date().toISOString();
   const sync = await getJson(env, "sync", {});
@@ -110,6 +150,7 @@ async function syncMoodle(env) {
     }
     for (const ev of fresh) cache[ev.uid] = ev;
     if (JSON.stringify(cache) !== before) await putJson(env, "moodle_cache", cache);
+    await resolveCourseNames(env, new Set(Object.values(cache).map((e) => e.course)));
     sync.lastSync = now;
     sync.error = null;
   } catch (err) {
@@ -119,10 +160,11 @@ async function syncMoodle(env) {
 }
 
 async function eventsPayload(env) {
-  const [cache, sync, state] = await Promise.all([
+  const [cache, sync, state, courses] = await Promise.all([
     getJson(env, "moodle_cache", {}),
     getJson(env, "sync", {}),
     getJson(env, "state", { done: [] }),
+    getJson(env, "courses", {}),
   ]);
   return {
     lastSync: sync.lastSync ?? null,
@@ -131,6 +173,7 @@ async function eventsPayload(env) {
     refreshSeconds: REFRESH_SECONDS,
     events: Object.values(cache).sort((a, b) => (a.start || "").localeCompare(b.start || "")),
     done: state.done || [],
+    courses,
   };
 }
 
