@@ -1478,13 +1478,10 @@ function fitDayPreviews() {
       items[i].hidden = true;
       hidden++;
     }
-    // "+ ②①": one coloured circle per status (not started / in progress / done) with how many are hidden.
+    // "②①": one coloured circle per status (not started / in progress / done) with how many are hidden.
     const label = { not_started: 'not started', in_progress: 'in progress', done: 'done' };
     const tally = new Map(Object.keys(label).map(status => [status, 0]));
     items.filter(item => item.hidden).forEach(item => tally.set(item.dataset.status, (tally.get(item.dataset.status) || 0) + 1));
-    const plus = document.createElement('span');
-    plus.className = 'day-more-plus';
-    plus.textContent = '+';
     const badges = [...tally].filter(([, n]) => n).map(([status, n]) => {
       const badge = document.createElement('span');
       badge.className = 'day-more-badge';
@@ -1492,7 +1489,7 @@ function fitDayPreviews() {
       badge.textContent = n;
       return badge;
     });
-    more.replaceChildren(plus, ...badges);
+    more.replaceChildren(...badges);
     more.title = `${hidden} more: ${[...tally].filter(([, n]) => n).map(([status, n]) => `${n} ${label[status] || status}`).join(', ')}`;
     more.setAttribute('aria-label', `Show all ${items.length} items on ${day.dataset.date}; ${more.title}`);
   });
