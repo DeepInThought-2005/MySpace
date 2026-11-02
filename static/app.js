@@ -989,6 +989,8 @@ document.addEventListener('keydown', event => {
 const dueFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'short', year: 'numeric' });
 const calendarTimeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' });
+// Month cells are small: show "08:00" there; the tooltip and details keep the time zone.
+const calendarShortTimeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 function formatDue(item) {
   if (item.studyTaskId) return `${dateFormatter.format(new Date(`${item.occurrenceDate || item.date}T12:00:00Z`))} · ${item.time} Zurich`;
@@ -1412,7 +1414,7 @@ function renderCalendar() {
       previewCourse.textContent = calendarCourseName(assignment.course);
       const previewTime = document.createElement('span');
       previewTime.className = 'day-preview-time';
-      previewTime.textContent = assignment.studyTaskId ? `${assignment.time} Zurich` : assignment.allDay ? 'All day' : calendarTimeFormatter.format(new Date(assignment.due));
+      previewTime.textContent = assignment.studyTaskId ? assignment.time : assignment.allDay ? 'All day' : calendarShortTimeFormatter.format(new Date(assignment.due));
       preview.append(previewTitle, previewCourse, previewTime);
       previews.append(preview);
     });
@@ -1428,11 +1430,78 @@ function renderCalendar() {
       });
       button.append(dots);
     }
-    button.addEventListener('click', () => { selectedDate = key; renderCalendar(); });
+    button.dataset.date = key;
+    calendarDayItems.set(key, dailyAssignments);
+    button.addEventListener('click', () => {
+      selectedDate = key;
+      renderCalendar();
+      // Phones show dots instead of titles, so a tap lists the day's items.
+      if (count && phoneCalendar.matches) openDayList(key);
+    });
     calendarGrid.append(button);
   }
   renderAssignments();
+  requestAnimationFrame(fitDayPreviews);
 }
+
+// ---- Month cells: show what fits, then "+N more" (opens the day's full list).
+const calendarDayItems = new Map();
+const phoneCalendar = window.matchMedia('(max-width: 520px)');
+
+function fitDayPreviews() {
+  calendarGrid.querySelectorAll('.calendar-day').forEach(day => {
+    const box = day.querySelector('.day-previews');
+    if (!box) return;
+    box.querySelector('.day-more')?.remove();
+    const items = [...box.querySelectorAll('.day-preview')];
+    items.forEach(item => { item.hidden = false; });
+    if (!items.length || box.offsetParent === null || box.scrollHeight <= box.clientHeight + 1) return;
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'day-more';
+    more.addEventListener('click', event => {
+      event.stopPropagation();
+      openDayList(day.dataset.date);
+    });
+    box.append(more);
+    let hidden = 0;
+    for (let i = items.length - 1; i >= 0 && box.scrollHeight > box.clientHeight + 1; i--) {
+      items[i].hidden = true;
+      hidden++;
+      more.textContent = `+${hidden} more`;
+    }
+    more.setAttribute('aria-label', `Show all ${items.length} items on ${day.dataset.date}`);
+  });
+}
+new ResizeObserver(() => fitDayPreviews()).observe(calendarGrid);
+
+const dayListDialog = document.getElementById('day-list-dialog');
+function openDayList(key) {
+  const items = calendarDayItems.get(key) || [];
+  const [year, month, dayOfMonth] = key.split('-').map(Number);
+  document.getElementById('day-list-title').textContent = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year, month - 1, dayOfMonth)));
+  const list = document.getElementById('day-list-items');
+  list.replaceChildren(...items.map(assignment => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'day-list-item';
+    row.dataset.status = assignmentStatus(assignment);
+    const title = document.createElement('strong');
+    title.textContent = calendarAssignmentTitle(assignment.title);
+    const meta = document.createElement('span');
+    meta.textContent = [assignment.studyTaskId ? `${assignment.time} Zurich` : assignment.allDay ? 'All day' : calendarTimeFormatter.format(new Date(assignment.due)), assignment.course].filter(Boolean).join(' · ');
+    row.append(title, meta);
+    row.addEventListener('click', () => {
+      dayListDialog.close();
+      openAssignmentDetails(assignment);
+    });
+    return row;
+  }));
+  dayListDialog.showModal();
+}
+document.getElementById('close-day-list').addEventListener('click', () => dayListDialog.close());
+dayListDialog.addEventListener('click', event => { if (event.target === dayListDialog) dayListDialog.close(); });
 
 function moveMonth(delta) {
   const month = new Date(Date.UTC(viewYear, viewMonth - 1 + delta, 1));
