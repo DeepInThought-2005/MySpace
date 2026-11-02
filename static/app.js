@@ -2147,7 +2147,21 @@ function renderPersonalWeek() {
   personalCalendar.replaceChildren(fragment);
   personalScroll.scrollTop = personalWeekAutoScroll ? firstEventScrollTop(dates) : currentScroll;
   personalCalendarOpened = true;
+  requestAnimationFrame(markOverflowingTaskCards);
 }
+
+// Cards whose text doesn't fit fade out at the bottom instead of cutting a line in half;
+// the fade goes away once the card is scrolled to its end.
+function markOverflowingTaskCards() {
+  personalCalendar.querySelectorAll('.personal-task').forEach(updateTaskCardFade);
+}
+function updateTaskCardFade(card) {
+  card.classList.toggle('is-overflowing', card.scrollHeight - card.scrollTop - card.clientHeight > 2);
+}
+personalCalendar.addEventListener('scroll', event => {
+  if (event.target.classList?.contains('personal-task')) updateTaskCardFade(event.target);
+}, { capture: true, passive: true });
+new ResizeObserver(() => markOverflowingTaskCards()).observe(personalCalendar);
 
 function renderPersonalMonth() {
   const year = personalMonthDate.getFullYear();

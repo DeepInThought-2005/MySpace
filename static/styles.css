@@ -795,3 +795,15 @@ body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
 /* Not zoomable: only panning gestures (no pinch or double-tap zoom). Descendants can only
    narrow this further, e.g. the Schedule day columns' long-press handling. */
 html{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+
+/* Schedule cards: wrap at word boundaries (hyphenating only words that can't fit) instead of
+   breaking at any letter, and fade the bottom when the text runs past the card. */
+.personal-task :is(strong,span,small){overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto}
+.personal-task.is-overflowing{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent)}
+@media(max-width:760px){
+ body.app-fixed .personal-task strong{white-space:normal;text-overflow:clip;overflow:visible;line-height:1.15}
+}
+/* (Repeated after the rule above so it wins.) Very thin cards: one clipped title line only. */
+@container (max-width:36px){
+ body.app-fixed .personal-task strong{white-space:nowrap;overflow:hidden;hyphens:none;-webkit-hyphens:none}
+}
