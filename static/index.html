@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#f4efe9" />
+    <title>My Space</title>
+    <!-- Installable as a home-screen app (iPhone: Share → Add to Home Screen). -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="My Space" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="icon" type="image/svg+xml" href="app-icon.svg?v=8" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body class="app-fixed">
+    <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+
+    <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="icon-notes" viewBox="0 0 48 48"><path d="M13 9h19a4 4 0 0 1 4 4v25H17a5 5 0 0 1-5-5V10a1 1 0 0 1 1-1Z"/><path d="M17 38a5 5 0 0 1 0-10h19M19 17h11M19 22h8"/></symbol>
+      <symbol id="icon-moments" viewBox="0 0 48 48"><rect x="7" y="11" width="34" height="27" rx="5"/><circle cx="18" cy="21" r="3"/><path d="m9 33 10-9 7 6 5-5 8 8M16 11l2-3h12l2 3"/></symbol>
+      <symbol id="icon-projects" viewBox="0 0 48 48"><rect x="8" y="13" width="32" height="26" rx="5"/><path d="M18 13V9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v4M8 23c9 7 23 7 32 0M21 27h6"/></symbol>
+      <symbol id="icon-collection" viewBox="0 0 48 48"><path d="M24 39s-14-8-14-19a8 8 0 0 1 14-5 8 8 0 0 1 14 5c0 11-14 19-14 19Z"/><path d="M24 20v10M19 25h10"/></symbol>
+      <symbol id="icon-star" viewBox="0 0 48 48"><path d="m24 6 5.5 11.4 12.5 1.8-9 8.8 2.1 12.4L24 34.5l-11.1 5.9L15 28l-9-8.8 12.5-1.8L24 6Z"/></symbol>
+      <symbol id="icon-music" viewBox="0 0 48 48"><path d="M20 35V12l20-4v22M20 17l20-4"/><ellipse cx="14" cy="36" rx="6" ry="4"/><ellipse cx="34" cy="31" rx="6" ry="4"/></symbol>
+      <symbol id="icon-leaf" viewBox="0 0 48 48"><path d="M40 8C20 8 9 16 9 29a10 10 0 0 0 10 10C32 39 40 28 40 8ZM10 39c6-9 13-15 22-21"/></symbol>
+      <symbol id="icon-coffee" viewBox="0 0 48 48"><path d="M9 17h25v12a10 10 0 0 1-10 10h-5A10 10 0 0 1 9 29V17ZM34 20h4a5 5 0 0 1 0 10h-4M7 41h31M17 8c-3 2-3 4 0 6M25 8c-3 2-3 4 0 6"/></symbol>
+      <symbol id="icon-sparkle" viewBox="0 0 24 24"><path d="m12 2 1.8 7.2L21 11l-7.2 1.8L12 20l-1.8-7.2L3 11l7.2-1.8L12 2ZM19 17l.6 2.4L22 20l-2.4.6L19 23l-.6-2.4L16 20l2.4-.6L19 17Z"/></symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></symbol>
+    </svg>
+
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="My Space"><img class="brand-mark" src="app-icon.svg?v=8" width="33" height="33" alt="" /><span>my space<span class="brand-dot">.</span></span></a>
+        <nav class="space-switch" id="space-switch" aria-label="Spaces"><a id="switch-study" href="#space-mv6d516l-yqzp9">Study_ETH</a><a id="switch-schedule" href="#space-mv6h7fv7-ef7n7">Schedule</a></nav>
+        <div class="topbar-actions"><button class="refresh-app-button" id="refresh-app" type="button" title="Load the latest app files and shared data"><span class="refresh-app-icon" aria-hidden="true">↻</span><span class="refresh-app-label">Refresh App</span></button><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to night mode" aria-pressed="false"><span id="theme-icon" aria-hidden="true">☾</span><span id="theme-label">Night</span></button><button class="customize-button" id="open-customizer" type="button"><svg><use href="#icon-sparkle" /></svg><span>Customize background</span></button><button class="logout-button" id="logout" type="button">Log out</button></div>
+      </header>
+
+      <main id="main-content">
+        <section class="home-view" id="home-view" aria-labelledby="home-title">
+          <h1 class="home-title" id="home-title">Your spaces</h1>
+          <section class="home-todo" aria-labelledby="home-todo-title">
+            <div class="home-todo-heading"><h2 id="home-todo-title">To do</h2><span id="home-todo-count"></span></div>
+            <form class="home-todo-form" id="home-todo-form"><input id="home-todo-input" type="text" maxlength="120" placeholder="Add a to-do" aria-label="New to-do" required /><button type="submit">Add</button></form>
+            <ul class="home-todo-list" id="home-todo-list" aria-label="To-do list"></ul>
+          </section>
+          <div class="space-actions"><button class="add-space-button" id="open-add-space" type="button"><span aria-hidden="true">+</span> Add space</button><button class="align-spaces-button" id="align-spaces" type="button" title="Arrange spaces in centered rows">Align</button><button class="trash-open-button" id="open-trash" type="button">Trash <span id="trash-count"></span></button><button class="edit-spaces-button" id="edit-spaces" type="button" aria-pressed="false">Edit</button></div>
+          <nav class="space-grid" id="space-grid" aria-label="Your spaces"></nav>
+        </section>
+
+        <section class="space-view" id="space-view" aria-labelledby="space-title" hidden>
+          <a class="back-link" href="#home">← Back to all spaces</a>
+          <div class="space-placeholder"><div class="placeholder-icon" id="space-icon"></div><span class="placeholder-label">YOUR SPACE</span><h1 id="space-title"></h1><p id="space-description"></p><span class="placeholder-note">This room is ready for our next step.</span></div>
+        </section>
+
+        <section class="personal-view" id="personal-view" aria-labelledby="personal-title" hidden>
+          <header class="study-header"><h1 id="personal-title">Personal</h1></header>
+          <div class="personal-panel">
+            <div class="personal-weekbar"><h2 id="personal-week-label" aria-live="polite"></h2><div class="personal-week-actions"><button id="personal-add-task" class="study-add-task" type="button">+ Add schedule</button><div class="personal-view-switch" role="group" aria-label="Calendar view"><button id="personal-month-view" type="button" aria-pressed="false">Month</button><button id="personal-week-view" type="button" aria-pressed="true">Week</button></div><button id="personal-prev-week" type="button" aria-label="Previous week">‹</button><button id="personal-this-week" type="button">This week</button><button id="personal-next-week" type="button" aria-label="Next week">›</button></div></div>
+            <p class="personal-hint" id="personal-hint">Select a time to place a task. Select a task to change it.</p>
+            <div class="personal-calendar-scroll" id="personal-calendar-scroll"><div class="personal-week-calendar" id="personal-week-calendar" role="group" aria-label="Weekly task calendar"></div><div class="personal-month-calendar" id="personal-month-calendar" role="group" aria-label="Monthly task calendar" hidden></div></div>
+          </div>
+        </section>
+
+        <section class="study-view" id="study-view" aria-labelledby="study-title" hidden>
+          <header class="study-header"><h1 id="study-title">Study at ETH</h1></header>
+          <div class="connection-notice" id="connection-notice" hidden><strong>Open the connected Study page</strong><p>Moodle deadlines are available through the local site.</p><a id="connected-study-link" href="#space-mv6d516l-yqzp9">Open assignments →</a></div>
+          <div class="study-layout" id="study-workspace">
+            <aside class="study-sidebar">
+              <nav aria-label="Study navigation">
+                <a class="study-nav-link" id="study-overview-link" href="#" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/></svg>Overview</a>
+                <a class="study-nav-link" id="study-assignments-link" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 2 2 3-4m3 3h10M3 13h5m3 0h10M3 19h5m3 0h10"/></svg>Assignments<span class="nav-count" id="study-assignment-count"></span></a>
+                <h2 class="sidebar-heading">Courses</h2>
+                <div class="course-navigation" id="course-navigation"></div>
+                <button class="study-add-course" id="study-add-course" type="button">Add course</button>
+              </nav>
+            </aside>
+            <div class="study-courses study-content">
+              <div class="study-content-heading"><h2 id="study-page-title">Overview</h2><div class="study-heading-actions"><button class="study-add-task" id="study-add-task" type="button">+ Add task</button><button class="refresh-assignments" id="refresh-assignments" type="button">Refresh</button></div></div>
+              <p class="study-status" id="study-status" role="status" aria-live="polite">Loading Moodle deadlines…</p>
+              <section id="study-calendar-panel" aria-labelledby="calendar-month">
+                <div class="calendar-toolbar"><h3 id="calendar-month" aria-live="polite"></h3><div class="calendar-actions"><button id="previous-month" type="button" aria-label="Previous month">‹</button><button id="calendar-today" type="button">Today</button><button id="next-month" type="button" aria-label="Next month">›</button></div></div>
+                <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+                <div class="calendar-grid" id="calendar-grid" aria-label="Assignment calendar"></div>
+              </section>
+              <section id="study-assignment-panel" aria-labelledby="assignment-list-title" hidden>
+                <div class="assignment-list-header"><h3 id="assignment-list-title">Assignments</h3><span id="assignment-count"></span></div>
+                <ul class="assignment-list" id="assignment-list"></ul>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer class="footer"><span>Made to feel like home.</span><img class="footer-icon" src="app-icon.svg?v=8" width="20" height="20" alt="" /></footer>
+    </div>
+
+    <div class="panel-overlay" id="panel-overlay" hidden></div>
+    <aside class="customizer" id="customizer" aria-labelledby="customizer-title" aria-modal="true" role="dialog" hidden>
+      <div class="panel-header"><div><span class="panel-eyebrow">MAKE IT YOURS</span><h2 id="customizer-title">Your background</h2></div><button class="icon-button" id="close-customizer" type="button" aria-label="Close background settings"><svg><use href="#icon-close" /></svg></button></div>
+      <p class="panel-description">Set the mood for your personal space. Your choice is saved in My Space and shared across your devices.</p>
+      <div class="panel-group"><h3>Choose a scene</h3><div class="preset-grid" id="preset-grid"><button class="preset preset-sunrise" type="button" data-preset="sunrise"><span class="preset-preview"></span><span>Sunrise</span></button><button class="preset preset-lilac" type="button" data-preset="lilac"><span class="preset-preview"></span><span>Lilac</span></button><button class="preset preset-sky" type="button" data-preset="sky"><span class="preset-preview"></span><span>Open sky</span></button><button class="preset preset-sage" type="button" data-preset="sage"><span class="preset-preview"></span><span>Sage</span></button></div></div>
+      <div class="panel-group"><h3>Pick a color</h3><label class="color-control"><input id="background-color" type="color" value="#f4efe9" /><span>Choose any color</span><span class="control-chevron">↗</span></label></div>
+      <div class="panel-group"><h3>Use your own photo</h3><label class="upload-control" for="background-upload" tabindex="0"><span class="upload-icon">↑</span><span><strong>Upload an image</strong><small>JPG, PNG, or WebP</small></span></label><input id="background-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden /><button class="remove-photo" id="remove-photo" type="button" hidden>Remove uploaded photo</button></div>
+      <p class="panel-status" id="panel-status" role="status" aria-live="polite"></p>
+    </aside>
+
+    <dialog class="space-dialog" id="space-dialog" aria-labelledby="add-space-title">
+      <form id="add-space-form">
+        <div class="dialog-heading"><div><span class="panel-eyebrow">A NEW LITTLE CORNER</span><h2 id="add-space-title">Add a space</h2></div><button class="icon-button" id="close-space-dialog" type="button" aria-label="Close"><svg><use href="#icon-close" /></svg></button></div>
+        <label class="field-label" for="new-space-name">Name your space</label>
+        <input class="name-input" id="new-space-name" name="name" type="text" maxlength="28" placeholder="e.g. Books, Recipes, Dreams" required />
+        <fieldset class="icon-picker"><legend>Choose an icon</legend><label><input type="radio" name="icon" value="notes" checked /><svg><use href="#icon-notes" /></svg><span class="sr-only">Notebook</span></label><label><input type="radio" name="icon" value="moments" /><svg><use href="#icon-moments" /></svg><span class="sr-only">Camera</span></label><label><input type="radio" name="icon" value="projects" /><svg><use href="#icon-projects" /></svg><span class="sr-only">Briefcase</span></label><label><input type="radio" name="icon" value="collection" /><svg><use href="#icon-collection" /></svg><span class="sr-only">Heart</span></label><label><input type="radio" name="icon" value="star" /><svg><use href="#icon-star" /></svg><span class="sr-only">Star</span></label><label><input type="radio" name="icon" value="music" /><svg><use href="#icon-music" /></svg><span class="sr-only">Music</span></label><label><input type="radio" name="icon" value="leaf" /><svg><use href="#icon-leaf" /></svg><span class="sr-only">Leaf</span></label><label><input type="radio" name="icon" value="coffee" /><svg><use href="#icon-coffee" /></svg><span class="sr-only">Coffee</span></label></fieldset>
+        <div class="space-picture-control"><label class="picture-upload-button" for="new-space-picture">↑ Upload a picture</label><input id="new-space-picture" type="file" accept="image/jpeg,image/png,image/webp" /><div class="picture-preview" id="new-picture-preview" hidden><img alt="Selected space icon" /><button type="button" id="remove-new-picture">Remove</button></div></div>
+        <p class="dialog-status" id="dialog-status" role="status" aria-live="polite"></p>
+        <button class="create-space-button" id="create-space-submit" type="submit">Create space <span>→</span></button>
+      </form>
+    </dialog>
+
+    <dialog class="space-dialog rename-space-dialog" id="rename-space-dialog" aria-labelledby="rename-space-title">
+      <form id="rename-space-form">
+        <h2 id="rename-space-title">Edit space</h2>
+        <label class="field-label" for="rename-space-name">Space name</label>
+        <input class="name-input" id="rename-space-name" name="name" type="text" maxlength="28" required />
+        <div class="space-picture-control"><label class="picture-upload-button" for="edit-space-picture">↑ Upload a picture</label><input id="edit-space-picture" type="file" accept="image/jpeg,image/png,image/webp" /><div class="picture-preview" id="edit-picture-preview" hidden><img alt="Current space icon" /><button type="button" id="remove-edit-picture">Remove</button></div></div>
+        <p class="dialog-status" id="rename-space-status" role="status" aria-live="polite"></p>
+        <div class="rename-space-actions"><button id="cancel-rename-space" type="button">Cancel</button><button id="save-space-submit" type="submit">Save changes</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="space-dialog personal-task-dialog" id="personal-task-dialog" aria-labelledby="personal-task-dialog-title">
+      <form id="personal-task-form">
+        <div class="dialog-heading"><h2 id="personal-task-dialog-title">Add task</h2><button class="icon-button" id="personal-close-task" type="button" aria-label="Close task editor"><svg><use href="#icon-close" /></svg></button></div>
+        <label class="field-label" for="personal-task-name">Task</label><input class="name-input" id="personal-task-name" type="text" maxlength="100" required placeholder="What do you want to do?" />
+        <label class="field-label" for="personal-task-description">Description</label><textarea class="name-input personal-description-input" id="personal-task-description" maxlength="1000" placeholder="Add a little detail (optional)"></textarea>
+        <div class="personal-color-field"><label for="personal-task-color">Color</label><div class="personal-color-options" role="group" aria-label="Schedule color"><button type="button" data-task-color="#a97975" aria-label="Rose" style="--swatch:#a97975"></button><button type="button" data-task-color="#5485b5" aria-label="Blue" style="--swatch:#5485b5"></button><button type="button" data-task-color="#5a9275" aria-label="Green" style="--swatch:#5a9275"></button><button type="button" data-task-color="#9573b5" aria-label="Purple" style="--swatch:#9573b5"></button><button type="button" data-task-color="#bd8d3f" aria-label="Gold" style="--swatch:#bd8d3f"></button><input id="personal-task-color" type="color" value="#a97975" aria-label="Custom schedule color" title="Choose any color" /></div></div>
+        <div class="personal-color-field personal-saved-color-field" id="personal-saved-color-field" hidden><span>Saved colors</span><div class="personal-color-options" id="personal-saved-colors" role="group" aria-label="Saved schedule colors"></div></div>
+        <div class="personal-color-confirm" id="personal-color-confirm" role="group" aria-labelledby="personal-color-confirm-label" hidden><p id="personal-color-confirm-label"><span id="personal-color-confirm-swatch" aria-hidden="true"></span>Remove this saved color?</p><small>Schedules will keep their color.</small><div><button id="personal-cancel-color-remove" type="button">Keep color</button><button id="personal-confirm-color-remove" type="button">Remove</button></div></div>
+        <p class="personal-repeat-note" id="personal-repeat-note" hidden></p>
+        <label class="personal-repeat-toggle" id="personal-task-done-field" for="personal-task-done" hidden><input id="personal-task-done" type="checkbox" /> Done for this date</label>
+        <label class="field-label" for="personal-task-date">Day</label><input class="name-input" id="personal-task-date" type="date" required />
+        <div class="personal-time-fields"><div><label class="field-label" for="personal-task-start">From</label><input class="name-input" id="personal-task-start" type="time" step="60" required /></div><div><label class="field-label" for="personal-task-end">To</label><input class="name-input" id="personal-task-end" type="time" step="60" required /></div></div>
+        <label class="personal-repeat-toggle" for="personal-task-repeat"><input id="personal-task-repeat" type="checkbox" /> Repeat every week</label>
+        <div id="personal-repeat-end" hidden><label class="field-label" for="personal-task-until">Until</label><input class="name-input" id="personal-task-until" type="date" /></div>
+        <label class="personal-repeat-toggle" for="personal-task-show-month"><input id="personal-task-show-month" type="checkbox" checked /> Show in monthly view</label>
+        <p class="dialog-status" id="personal-task-error" role="status" aria-live="polite"></p>
+        <div class="personal-task-actions"><div><button id="personal-skip-week" type="button" hidden>Remove this week</button><button id="personal-delete-task" type="button" hidden>Delete task</button></div><div><button id="personal-cancel-task" type="button">Cancel</button><button id="personal-save-task" type="submit">Save task</button></div></div>
+      </form>
+    </dialog>
+
+    <dialog class="space-dialog delete-space-dialog" id="delete-space-dialog" aria-labelledby="delete-space-title">
+      <h2 id="delete-space-title">Move to Trash?</h2>
+      <p id="delete-space-message"></p>
+      <div class="delete-space-actions">
+        <button id="cancel-delete-space" type="button">Cancel</button>
+        <button id="confirm-delete-space" type="button">Move to Trash</button>
+      </div>
+    </dialog>
+
+    <dialog class="space-dialog trash-dialog" id="trash-dialog" aria-labelledby="trash-title">
+      <div class="dialog-heading"><h2 id="trash-title">Trash</h2><button class="icon-button" id="close-trash" type="button" aria-label="Close Trash"><svg><use href="#icon-close" /></svg></button></div>
+      <div id="trash-items"></div>
+    </dialog>
+    <dialog class="space-dialog delete-space-dialog" id="permanent-delete-dialog" aria-labelledby="permanent-delete-title">
+      <h2 id="permanent-delete-title">Delete forever?</h2>
+      <p id="permanent-delete-message"></p>
+      <div class="delete-space-actions">
+        <button id="cancel-permanent-delete" type="button">Cancel</button>
+        <button id="confirm-permanent-delete" type="button">Delete forever</button>
+      </div>
+    </dialog>
+    <dialog class="assignment-dialog" id="assignment-dialog" aria-labelledby="assignment-detail-title">
+      <div class="assignment-dialog-heading"><div><p id="assignment-detail-course"></p><h2 id="assignment-detail-title"></h2></div><div class="assignment-dialog-actions"><button class="study-occurrence-remove" id="remove-study-occurrence" type="button" hidden>Remove this date</button><button class="edit-study-task-detail" id="edit-study-task-detail" type="button" hidden>Edit task</button><button class="icon-button" id="close-assignment-dialog" type="button" aria-label="Close assignment details" autofocus><svg><use href="#icon-close" /></svg></button></div></div>
+      <div class="assignment-dialog-body">
+      <aside class="assignment-info">
+      <div class="assignment-detail-meta"><p id="assignment-detail-due"></p><div id="assignment-detail-progress"></div></div>
+      <p class="assignment-description" id="assignment-detail-description"></p>
+      <div id="assignment-submission" hidden><a class="assignment-moodle-link" id="assignment-submission-link" target="_blank" rel="noopener noreferrer"></a><p class="attachment-note" id="assignment-submission-note"></p></div>
+      </aside>
+      <section class="assignment-files" aria-labelledby="assignment-files-title"><div class="assignment-files-heading"><h3 id="assignment-files-title">Your files</h3><button class="upload-assignment-button" id="upload-assignment-button" type="button">↑ Add files</button><input id="assignment-file-upload" type="file" multiple hidden /></div><p class="attachment-note" id="assignment-files-note" role="status" aria-live="polite"></p><div class="attachment-list" id="assignment-attachments"></div><div id="assignment-file-preview"></div><p class="attachment-note">Up to 20 MB per file · Saved in My Space</p></section>
+      </div>
+    </dialog>
+    <dialog class="space-dialog day-list-dialog" id="day-list-dialog" aria-labelledby="day-list-title">
+      <div class="dialog-heading"><h2 id="day-list-title"></h2><button class="icon-button" id="close-day-list" type="button" aria-label="Close day list"><svg><use href="#icon-close" /></svg></button></div>
+      <div class="day-list-items" id="day-list-items"></div>
+    </dialog>
+    <dialog class="space-dialog study-occurrence-confirm" id="study-occurrence-confirm" aria-labelledby="study-occurrence-confirm-message">
+      <p id="study-occurrence-confirm-message"></p>
+      <div><button id="cancel-study-occurrence-remove" type="button">Keep date</button><button id="confirm-study-occurrence-remove" type="button">Remove date</button></div>
+    </dialog>
+    <dialog class="space-dialog study-editor-dialog" id="study-task-dialog" aria-labelledby="study-task-dialog-title">
+      <form id="study-task-form">
+        <div class="dialog-heading"><h2 id="study-task-dialog-title">Add study task</h2><button class="icon-button" id="study-task-close" type="button" aria-label="Close task editor"><svg><use href="#icon-close" /></svg></button></div>
+        <label class="field-label" for="study-task-name">Task</label><input class="name-input" id="study-task-name" type="text" maxlength="120" placeholder="What needs doing?" required />
+        <label class="field-label" for="study-task-course">Course</label><select class="name-input" id="study-task-course" required></select>
+        <label class="field-label" for="study-task-description">Description</label><textarea class="name-input personal-description-input" id="study-task-description" maxlength="1000" placeholder="Optional"></textarea>
+        <label class="field-label" for="study-task-date">Due date</label><input class="name-input" id="study-task-date" type="date" required />
+        <label class="field-label" for="study-task-time">Due time</label><input class="name-input" id="study-task-time" type="time" value="23:59" required />
+        <label class="personal-repeat-toggle" for="study-task-repeat"><input id="study-task-repeat" type="checkbox" /> Repeat every week</label>
+        <div id="study-task-repeat-end" hidden><label class="field-label" for="study-task-until">Until</label><input class="name-input" id="study-task-until" type="date" /></div>
+        <p class="dialog-status" id="study-task-error" role="status" aria-live="polite"></p>
+        <div class="study-task-delete-confirm" id="study-task-delete-confirm" hidden><span>Delete this task and all its dates?</span><button id="study-task-delete-cancel" type="button">Keep task</button><button id="study-task-delete-confirm-button" type="button">Delete task</button></div>
+        <div class="personal-task-actions"><button id="study-task-delete" type="button" hidden>Delete task</button><div></div><div><button id="study-task-cancel" type="button">Cancel</button><button class="create-space-button" type="submit">Save task</button></div></div>
+      </form>
+    </dialog>
+    <dialog class="space-dialog study-editor-dialog" id="study-course-dialog" aria-labelledby="study-course-dialog-title">
+      <form id="study-course-form"><div class="dialog-heading"><h2 id="study-course-dialog-title">Add course</h2><button class="icon-button" id="study-course-close" type="button" aria-label="Close course editor"><svg><use href="#icon-close" /></svg></button></div>
+        <label class="field-label" for="study-course-name">Course name</label><input class="name-input" id="study-course-name" maxlength="100" placeholder="e.g. Linear Algebra" required />
+        <p class="dialog-status" id="study-course-error" role="status" aria-live="polite"></p><div class="personal-task-actions"><span></span><div><button id="study-course-cancel" type="button">Cancel</button><button class="create-space-button" type="submit">Add course</button></div></div>
+      </form>
+    </dialog>
+    <div class="trash-drop-zone" id="trash-drop-zone" hidden>Drop here to move to Trash</div>
+  </body>
+</html>

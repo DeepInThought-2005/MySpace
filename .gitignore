@@ -1,0 +1,14 @@
+# Contains your private Moodle calendar token — never commit it
+config.json
+.env
+
+# Local planner data (cached Moodle events, your tasks, done state)
+data/
+
+__pycache__/
+.DS_Store
+
+# Wrangler / Node
+node_modules/
+.wrangler/
+.dev.vars
