@@ -778,9 +778,11 @@ body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
 /* The pinned time column must stay above events (z 1) and the selection (z 2) when the
    week is scrolled sideways; the corner above it (z 4) and day headings (z 2) stay on top. */
 .personal-time-axis{z-index:3}
-/* Touch screens: the hover time marker would stick after a tap, so it never shows there. */
+/* Touch screens: the hover time marker would stick after a tap, so it never shows there. The
+   keyboard focus ring could also appear on a day column or card after a swipe or tap. */
 @media(hover:none){
  .personal-day-track:hover::before,.personal-day-track:hover::after{opacity:0}
+ :is(.personal-day-track,.personal-task,.personal-month-day,.personal-month-task):focus-visible{outline:none}
 }
 
 /* Not zoomable: only panning gestures (no pinch or double-tap zoom). Descendants can only
