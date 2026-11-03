@@ -760,10 +760,15 @@ html[data-theme="night"] .status-segments .status-option[aria-pressed="true"]{ba
 /* Days with items open their list when clicked, so show that they're clickable. */
 body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
 
-/* Schedule week on phones: Mon–Fri fill the screen; swipe left for Sat/Sun. */
+/* Schedule week and month on phones: Mon–Fri fill the screen; swipe left for Sat/Sun. */
 @media(max-width:600px){
  body.app-fixed .personal-calendar-scroll{container-type:inline-size}
  body.app-fixed .personal-week-calendar{grid-template-columns:40px repeat(7,calc((100cqw - 40px) / 5));min-width:0}
+ body.app-fixed .personal-month-calendar{grid-template-columns:repeat(7,calc(100cqw / 5));min-width:0}
+ body.app-fixed .personal-month-day{padding:5px 4px}
+ body.app-fixed .personal-month-task{grid-template-columns:minmax(0,1fr);gap:0;padding:3px 4px}
+ body.app-fixed .personal-month-task strong{order:-1}
+ body.app-fixed .personal-month-task small{display:none}
  body.app-fixed .personal-day-heading{font-size:10px}
  body.app-fixed .personal-day-heading strong{font-size:13px}
  body.app-fixed .personal-day-heading.is-today strong{min-width:22px;height:22px}
