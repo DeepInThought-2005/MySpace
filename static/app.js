@@ -1814,12 +1814,14 @@ function armPersonalLongPress(event, track, date) {
     navigator.vibrate?.(12);
     startPersonalTimeSelection({ button: 0, isPrimary: true, target: track, pointerId: press.pointerId, clientY: press.y, preventDefault() {} }, track, date);
   }, personalLongPressMs);
-  // Show which slot is being pressed (touch screens have no hover to show it).
+  personalLongPress = press;
+  // With a mouse, show which slot is being held. On touch screens nothing shows until the long
+  // press completes, so a tap or a swipe doesn't flash a time.
+  if (event.pointerType !== 'mouse') return;
   const minute = Math.min(23 * 60 + 45, Math.max(0, Math.floor((event.clientY - track.getBoundingClientRect().top) / (personalHourHeight / 4)) * 15));
   track.style.setProperty('--hover-slot', `${minute / 60 * personalHourHeight}px`);
   track.dataset.hoverTime = timeFor(minute);
   track.classList.add('is-pressing');
-  personalLongPress = press;
 }
 
 function clearPersonalTimeSelection() {
