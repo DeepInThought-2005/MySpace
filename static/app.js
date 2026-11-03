@@ -1895,6 +1895,163 @@ for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
   personalScroll.addEventListener(type, () => { personalWeekAutoScroll = false; }, { passive: true });
 }
 
+// When the week is wider than the screen, it scrolls along one axis at a time (whichever the
+// gesture starts with), and sideways scrolling always settles with a day at the left edge.
+// Touch and wheel/trackpad are driven here; scrollbars and other scrolling snap once they stop.
+let personalScrollGesture = null;
+let personalScrollMotion = 0;
+let personalSnapTimer = 0;
+let personalSnapping = false;
+
+function personalWeekScrollsSideways() {
+  return personalCalendarView === 'week' && personalScroll.scrollWidth > personalScroll.clientWidth + 1;
+}
+
+function personalDaySnapPoints() {
+  const max = personalScroll.scrollWidth - personalScroll.clientWidth;
+  const origin = personalCalendar.getBoundingClientRect().left + (personalCalendar.querySelector('.personal-calendar-corner')?.offsetWidth || 0);
+  const points = [...personalCalendar.querySelectorAll('.personal-day-heading')]
+    .map(heading => Math.round(heading.getBoundingClientRect().left - origin)).filter(left => left < max - 2);
+  return [...points, max];
+}
+
+function stopPersonalScrollMotion() {
+  cancelAnimationFrame(personalScrollMotion);
+  personalScrollMotion = 0;
+  personalSnapping = false;
+}
+
+// `aim` is where the scroll is heading (current position, nudged by the gesture's direction
+// or flick); the nearest day to it wins.
+function snapPersonalDays(aim = personalScroll.scrollLeft, animate = true) {
+  clearTimeout(personalSnapTimer);
+  if (!personalWeekScrollsSideways()) return;
+  const target = personalDaySnapPoints().reduce((best, left) => Math.abs(left - aim) < Math.abs(best - aim) ? left : best);
+  stopPersonalScrollMotion();
+  const from = personalScroll.scrollLeft;
+  if (Math.abs(target - from) < 1) return;
+  if (!animate) { personalScroll.scrollLeft = target; return; }
+  const duration = Math.min(320, 160 + Math.abs(target - from) * 0.6);
+  const started = performance.now();
+  personalSnapping = true;
+  const step = now => {
+    const t = Math.min(1, (now - started) / duration);
+    personalScroll.scrollLeft = from + (target - from) * (1 - (1 - t) ** 3);
+    if (t < 1) personalScrollMotion = requestAnimationFrame(step);
+    else { personalScrollMotion = 0; personalSnapping = false; }
+  };
+  personalScrollMotion = requestAnimationFrame(step);
+}
+
+function nudgedPersonalAim(direction) {
+  const days = personalDaySnapPoints();
+  const day = days.length > 1 ? days[1] - days[0] : personalScroll.clientWidth;
+  return personalScroll.scrollLeft + Math.sign(direction) * day * 0.3;
+}
+
+// Vertical flicks keep gliding after the finger lifts, like native scrolling.
+function glidePersonalScroll(velocity) {
+  stopPersonalScrollMotion();
+  let previous = performance.now();
+  const step = now => {
+    const elapsed = Math.min(32, now - previous);
+    previous = now;
+    personalScroll.scrollTop -= velocity * elapsed;
+    velocity *= 0.997 ** elapsed;
+    const atEdge = personalScroll.scrollTop <= 0 || personalScroll.scrollTop >= personalScroll.scrollHeight - personalScroll.clientHeight;
+    personalScrollMotion = Math.abs(velocity) > 0.02 && !atEdge ? requestAnimationFrame(step) : 0;
+  };
+  personalScrollMotion = requestAnimationFrame(step);
+}
+
+personalScroll.addEventListener('touchstart', event => {
+  if (event.touches.length !== 1 || !personalWeekScrollsSideways()) { personalScrollGesture = null; return; }
+  stopPersonalScrollMotion();
+  clearTimeout(personalSnapTimer);
+  const touch = event.touches[0];
+  personalScrollGesture = { kind: 'touch', axis: null, x: touch.clientX, y: touch.clientY, left: 0, top: 0, samples: [] };
+}, { passive: true });
+
+personalScroll.addEventListener('touchmove', event => {
+  const gesture = personalScrollGesture;
+  if (!gesture || gesture.kind !== 'touch' || personalTimeSelection) return;
+  if (event.touches.length !== 1) { personalScrollGesture = null; snapPersonalDays(); return; }
+  event.preventDefault();
+  const touch = event.touches[0];
+  const dx = touch.clientX - gesture.x, dy = touch.clientY - gesture.y;
+  if (!gesture.axis) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+    gesture.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    Object.assign(gesture, { x: touch.clientX, y: touch.clientY, left: personalScroll.scrollLeft, top: personalScroll.scrollTop });
+    return;
+  }
+  const now = performance.now();
+  gesture.samples.push({ t: now, v: gesture.axis === 'x' ? touch.clientX : touch.clientY });
+  while (gesture.samples.length > 2 && now - gesture.samples[0].t > 100) gesture.samples.shift();
+  if (gesture.axis === 'x') personalScroll.scrollLeft = gesture.left - dx;
+  else personalScroll.scrollTop = gesture.top - dy;
+}, { passive: false });
+
+function endPersonalTouchScroll() {
+  const gesture = personalScrollGesture;
+  if (!gesture || gesture.kind !== 'touch') return;
+  personalScrollGesture = null;
+  const first = gesture.samples[0], last = gesture.samples.at(-1);
+  const recent = first && last && performance.now() - last.t < 80 && last.t > first.t;
+  const velocity = recent ? (last.v - first.v) / (last.t - first.t) : 0;
+  if (gesture.axis === 'x') snapPersonalDays(Math.abs(velocity) > 0.3 ? personalScroll.scrollLeft - velocity * 180 : personalScroll.scrollLeft);
+  else if (gesture.axis === 'y' && Math.abs(velocity) > 0.1) glidePersonalScroll(velocity);
+}
+personalScroll.addEventListener('touchend', endPersonalTouchScroll);
+personalScroll.addEventListener('touchcancel', endPersonalTouchScroll);
+
+// Wheel and trackpad: a burst of wheel events (including trackpad momentum) is one gesture,
+// locked to its first direction; sideways bursts settle on a day once they pause.
+personalScroll.addEventListener('wheel', event => {
+  if (event.ctrlKey || !personalWeekScrollsSideways()) return;
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? personalScroll.clientHeight : 1;
+  let dx = event.deltaX * unit, dy = event.deltaY * unit;
+  if (event.shiftKey && !dx) [dx, dy] = [dy, 0];
+  const now = performance.now();
+  let gesture = personalScrollGesture;
+  if (!gesture || gesture.kind !== 'wheel' || now - gesture.last > 180) {
+    if (!dx && !dy) return;
+    gesture = personalScrollGesture = { kind: 'wheel', axis: Math.abs(dx) > Math.abs(dy) ? 'x' : 'y', last: now, direction: 0 };
+    if (gesture.axis === 'x') stopPersonalScrollMotion();
+  }
+  gesture.last = now;
+  if (gesture.axis === 'y') {
+    if (!dx) return; // A plain vertical wheel scrolls natively (and smoothly).
+    event.preventDefault();
+    personalScroll.scrollTop += dy;
+    return;
+  }
+  event.preventDefault();
+  if (personalSnapping) return;
+  personalScroll.scrollLeft += dx;
+  if (dx) gesture.direction = dx;
+  clearTimeout(personalSnapTimer);
+  personalSnapTimer = setTimeout(() => {
+    if (personalScrollGesture === gesture) personalScrollGesture = null;
+    snapPersonalDays(nudgedPersonalAim(gesture.direction));
+  }, 140);
+}, { passive: false });
+
+function personalScrollGestureActive() {
+  const gesture = personalScrollGesture;
+  return Boolean(gesture) && (gesture.kind === 'touch' || performance.now() - gesture.last <= 180);
+}
+
+// Anything else that scrolls sideways (scrollbar, keyboard) snaps once it stops.
+let personalLastScrollLeft = 0;
+personalScroll.addEventListener('scroll', () => {
+  const moved = personalScroll.scrollLeft - personalLastScrollLeft;
+  personalLastScrollLeft = personalScroll.scrollLeft;
+  if (!moved || personalSnapping || personalScrollGestureActive()) return;
+  clearTimeout(personalSnapTimer);
+  personalSnapTimer = setTimeout(() => { if (!personalScrollGestureActive()) snapPersonalDays(nudgedPersonalAim(moved)); }, 160);
+}, { passive: true });
+
 function localDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -2168,7 +2325,7 @@ function fitTaskCard(card) {
 function fitTaskCards() {
   personalCalendar.querySelectorAll('.personal-task').forEach(fitTaskCard);
 }
-new ResizeObserver(() => fitTaskCards()).observe(personalCalendar);
+new ResizeObserver(() => { fitTaskCards(); snapPersonalDays(personalScroll.scrollLeft, false); }).observe(personalCalendar);
 
 function renderPersonalMonth() {
   const year = personalMonthDate.getFullYear();
