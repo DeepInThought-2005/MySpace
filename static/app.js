@@ -1892,171 +1892,11 @@ document.addEventListener('keydown', event => {
 window.addEventListener('blur', clearPersonalTimeSelection);
 // Once a long press has started a selection, finger movement resizes it instead of scrolling.
 personalScroll.addEventListener('touchmove', event => { if (personalTimeSelection) event.preventDefault(); }, { passive: false });
-personalScroll.addEventListener('scroll', cancelPersonalLongPress, { passive: true });
+// Scroll events don't bubble; capturing also catches the inner sideways day strip.
+personalScroll.addEventListener('scroll', cancelPersonalLongPress, { passive: true, capture: true });
 for (const type of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
   personalScroll.addEventListener(type, () => { personalWeekAutoScroll = false; }, { passive: true });
 }
-
-// When the week or month is wider than the screen, it scrolls along one axis at a time (whichever
-// the gesture starts with), and sideways scrolling always settles with a day at the left edge.
-// Touch and wheel/trackpad are driven here; scrollbars and other scrolling snap once they stop.
-let personalScrollGesture = null;
-let personalScrollMotion = 0;
-let personalSnapTimer = 0;
-let personalSnapping = false;
-
-function personalCalendarScrollsSideways() {
-  return personalScroll.scrollWidth > personalScroll.clientWidth + 1;
-}
-
-function personalDaySnapPoints() {
-  const max = personalScroll.scrollWidth - personalScroll.clientWidth;
-  const month = personalCalendarView === 'month';
-  const grid = month ? personalMonthCalendar : personalCalendar;
-  const origin = grid.getBoundingClientRect().left + (month ? 0 : grid.querySelector('.personal-calendar-corner')?.offsetWidth || 0);
-  const points = [...grid.querySelectorAll(month ? '.personal-month-weekday' : '.personal-day-heading')]
-    .map(heading => Math.round(heading.getBoundingClientRect().left - origin)).filter(left => left < max - 2);
-  return [...points, max];
-}
-
-function stopPersonalScrollMotion() {
-  cancelAnimationFrame(personalScrollMotion);
-  personalScrollMotion = 0;
-  personalSnapping = false;
-}
-
-// `aim` is where the scroll is heading (current position, nudged by the gesture's direction
-// or flick); the nearest day to it wins.
-function snapPersonalDays(aim = personalScroll.scrollLeft, animate = true) {
-  clearTimeout(personalSnapTimer);
-  if (!personalCalendarScrollsSideways()) return;
-  const target = personalDaySnapPoints().reduce((best, left) => Math.abs(left - aim) < Math.abs(best - aim) ? left : best);
-  stopPersonalScrollMotion();
-  const from = personalScroll.scrollLeft;
-  if (Math.abs(target - from) < 1) return;
-  if (!animate) { personalScroll.scrollLeft = target; return; }
-  const duration = Math.min(320, 160 + Math.abs(target - from) * 0.6);
-  const started = performance.now();
-  personalSnapping = true;
-  const step = now => {
-    const t = Math.min(1, (now - started) / duration);
-    personalScroll.scrollLeft = from + (target - from) * (1 - (1 - t) ** 3);
-    if (t < 1) personalScrollMotion = requestAnimationFrame(step);
-    else { personalScrollMotion = 0; personalSnapping = false; }
-  };
-  personalScrollMotion = requestAnimationFrame(step);
-}
-
-function nudgedPersonalAim(direction) {
-  const days = personalDaySnapPoints();
-  const day = days.length > 1 ? days[1] - days[0] : personalScroll.clientWidth;
-  return personalScroll.scrollLeft + Math.sign(direction) * day * 0.3;
-}
-
-// Vertical flicks keep gliding after the finger lifts, like native scrolling.
-function glidePersonalScroll(velocity) {
-  stopPersonalScrollMotion();
-  let previous = performance.now();
-  const step = now => {
-    const elapsed = Math.min(32, now - previous);
-    previous = now;
-    personalScroll.scrollTop -= velocity * elapsed;
-    velocity *= 0.997 ** elapsed;
-    const atEdge = personalScroll.scrollTop <= 0 || personalScroll.scrollTop >= personalScroll.scrollHeight - personalScroll.clientHeight;
-    personalScrollMotion = Math.abs(velocity) > 0.02 && !atEdge ? requestAnimationFrame(step) : 0;
-  };
-  personalScrollMotion = requestAnimationFrame(step);
-}
-
-personalScroll.addEventListener('touchstart', event => {
-  // A month day's own item list still scrolls natively when it overflows.
-  const items = event.target.closest?.('.personal-month-items');
-  if (event.touches.length !== 1 || !personalCalendarScrollsSideways() || (items && items.scrollHeight > items.clientHeight)) { personalScrollGesture = null; return; }
-  stopPersonalScrollMotion();
-  clearTimeout(personalSnapTimer);
-  const touch = event.touches[0];
-  personalScrollGesture = { kind: 'touch', axis: null, x: touch.clientX, y: touch.clientY, left: 0, top: 0, samples: [] };
-}, { passive: true });
-
-personalScroll.addEventListener('touchmove', event => {
-  const gesture = personalScrollGesture;
-  if (!gesture || gesture.kind !== 'touch' || personalTimeSelection) return;
-  if (event.touches.length !== 1) { personalScrollGesture = null; snapPersonalDays(); return; }
-  event.preventDefault();
-  const touch = event.touches[0];
-  const dx = touch.clientX - gesture.x, dy = touch.clientY - gesture.y;
-  if (!gesture.axis) {
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
-    gesture.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    Object.assign(gesture, { x: touch.clientX, y: touch.clientY, left: personalScroll.scrollLeft, top: personalScroll.scrollTop });
-    return;
-  }
-  const now = performance.now();
-  gesture.samples.push({ t: now, v: gesture.axis === 'x' ? touch.clientX : touch.clientY });
-  while (gesture.samples.length > 2 && now - gesture.samples[0].t > 100) gesture.samples.shift();
-  if (gesture.axis === 'x') personalScroll.scrollLeft = gesture.left - dx;
-  else personalScroll.scrollTop = gesture.top - dy;
-}, { passive: false });
-
-function endPersonalTouchScroll() {
-  const gesture = personalScrollGesture;
-  if (!gesture || gesture.kind !== 'touch') return;
-  personalScrollGesture = null;
-  const first = gesture.samples[0], last = gesture.samples.at(-1);
-  const recent = first && last && performance.now() - last.t < 80 && last.t > first.t;
-  const velocity = recent ? (last.v - first.v) / (last.t - first.t) : 0;
-  if (gesture.axis === 'x') snapPersonalDays(Math.abs(velocity) > 0.3 ? personalScroll.scrollLeft - velocity * 180 : personalScroll.scrollLeft);
-  else if (gesture.axis === 'y' && Math.abs(velocity) > 0.1) glidePersonalScroll(velocity);
-}
-personalScroll.addEventListener('touchend', endPersonalTouchScroll);
-personalScroll.addEventListener('touchcancel', endPersonalTouchScroll);
-
-// Wheel and trackpad: a burst of wheel events (including trackpad momentum) is one gesture,
-// locked to its first direction; sideways bursts settle on a day once they pause.
-personalScroll.addEventListener('wheel', event => {
-  if (event.ctrlKey || !personalCalendarScrollsSideways()) return;
-  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? personalScroll.clientHeight : 1;
-  let dx = event.deltaX * unit, dy = event.deltaY * unit;
-  if (event.shiftKey && !dx) [dx, dy] = [dy, 0];
-  const now = performance.now();
-  let gesture = personalScrollGesture;
-  if (!gesture || gesture.kind !== 'wheel' || now - gesture.last > 180) {
-    if (!dx && !dy) return;
-    gesture = personalScrollGesture = { kind: 'wheel', axis: Math.abs(dx) > Math.abs(dy) ? 'x' : 'y', last: now, direction: 0 };
-    if (gesture.axis === 'x') stopPersonalScrollMotion();
-  }
-  gesture.last = now;
-  if (gesture.axis === 'y') {
-    if (!dx) return; // A plain vertical wheel scrolls natively (and smoothly).
-    event.preventDefault();
-    personalScroll.scrollTop += dy;
-    return;
-  }
-  event.preventDefault();
-  if (personalSnapping) return;
-  personalScroll.scrollLeft += dx;
-  if (dx) gesture.direction = dx;
-  clearTimeout(personalSnapTimer);
-  personalSnapTimer = setTimeout(() => {
-    if (personalScrollGesture === gesture) personalScrollGesture = null;
-    snapPersonalDays(nudgedPersonalAim(gesture.direction));
-  }, 140);
-}, { passive: false });
-
-function personalScrollGestureActive() {
-  const gesture = personalScrollGesture;
-  return Boolean(gesture) && (gesture.kind === 'touch' || performance.now() - gesture.last <= 180);
-}
-
-// Anything else that scrolls sideways (scrollbar, keyboard) snaps once it stops.
-let personalLastScrollLeft = 0;
-personalScroll.addEventListener('scroll', () => {
-  const moved = personalScroll.scrollLeft - personalLastScrollLeft;
-  personalLastScrollLeft = personalScroll.scrollLeft;
-  if (!moved || personalSnapping || personalScrollGestureActive()) return;
-  clearTimeout(personalSnapTimer);
-  personalSnapTimer = setTimeout(() => { if (!personalScrollGestureActive()) snapPersonalDays(nudgedPersonalAim(moved)); }, 160);
-}, { passive: true });
 
 function localDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -2198,6 +2038,45 @@ function applyPersonalTaskColor(button, task) {
   button.style.setProperty('--task-color', task.color);
 }
 
+// Both Schedule calendars scroll natively in two layers: the outer area scrolls up and down,
+// and an inner strip scrolls the days sideways, snapping to whole days. A swipe belongs to
+// whichever layer it starts moving, so it stays on one axis. The day headings sit outside the
+// strip (so they stay at the top while the outer area scrolls) and follow it sideways: in step
+// with the scroll through a scroll-driven animation where supported, otherwise on scroll events.
+const personalDaysObserver = new ResizeObserver(entries => entries.forEach(entry => entry.target.syncPersonalHeadings?.()));
+
+function createPersonalDays(headings, cells) {
+  const head = document.createElement('div');
+  head.className = 'personal-days-head';
+  const headRow = document.createElement('div');
+  headRow.className = 'personal-days-head-row';
+  headRow.append(...headings);
+  head.append(headRow);
+  const scroller = document.createElement('div');
+  scroller.className = 'personal-days-scroll';
+  const grid = document.createElement('div');
+  grid.className = 'personal-days-grid';
+  grid.append(...cells);
+  scroller.append(grid);
+  return { head, headRow, scroller };
+}
+
+function replacePersonalDays(calendar, fragment, { headRow, scroller }) {
+  const previous = calendar.querySelector('.personal-days-scroll');
+  if (previous) personalDaysObserver.unobserve(previous);
+  const left = previous?.scrollLeft || 0;
+  calendar.replaceChildren(fragment);
+  const sync = () => {
+    headRow.style.setProperty('--days-max', scroller.scrollWidth - scroller.clientWidth);
+    headRow.style.transform = `translateX(${-scroller.scrollLeft}px)`;
+  };
+  scroller.syncPersonalHeadings = sync;
+  scroller.addEventListener('scroll', sync, { passive: true });
+  personalDaysObserver.observe(scroller);
+  scroller.scrollLeft = left;
+  sync();
+}
+
 function renderPersonalWeek() {
   clearPersonalTimeSelection();
   const dates = personalWeekDates();
@@ -2211,12 +2090,12 @@ function renderPersonalWeek() {
   const corner = document.createElement('div');
   corner.className = 'personal-calendar-corner';
   fragment.append(corner);
-  dates.forEach(date => {
+  const headings = dates.map(date => {
     const heading = document.createElement('div');
     heading.className = 'personal-day-heading';
     if (localDateKey(date) === localDateKey(new Date())) heading.classList.add('is-today');
     heading.innerHTML = `<span>${new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date)}</span><strong>${date.getDate()}</strong>`;
-    fragment.append(heading);
+    return heading;
   });
   const timeAxis = document.createElement('div');
   timeAxis.className = 'personal-time-axis';
@@ -2227,8 +2106,7 @@ function renderPersonalWeek() {
     label.textContent = timeFor(hour * 60);
     timeAxis.append(label);
   }
-  fragment.append(timeAxis);
-  dates.forEach((date, index) => {
+  const tracks = dates.map((date, index) => {
     const key = localDateKey(date);
     const track = document.createElement('div');
     track.className = 'personal-day-track';
@@ -2310,9 +2188,11 @@ function renderPersonalWeek() {
       button.addEventListener('click', event => { event.stopPropagation(); openPersonalTaskEditor(task); });
       track.append(button);
     });
-    fragment.append(track);
+    return track;
   });
-  personalCalendar.replaceChildren(fragment);
+  const days = createPersonalDays(headings, tracks);
+  fragment.append(days.head, timeAxis, days.scroller);
+  replacePersonalDays(personalCalendar, fragment, days);
   personalScroll.scrollTop = personalWeekAutoScroll ? firstEventScrollTop(dates) : currentScroll;
   personalCalendarOpened = true;
   requestAnimationFrame(fitTaskCards);
@@ -2331,8 +2211,7 @@ function fitTaskCard(card) {
 function fitTaskCards() {
   personalCalendar.querySelectorAll('.personal-task').forEach(fitTaskCard);
 }
-new ResizeObserver(() => { fitTaskCards(); snapPersonalDays(personalScroll.scrollLeft, false); }).observe(personalCalendar);
-new ResizeObserver(() => snapPersonalDays(personalScroll.scrollLeft, false)).observe(personalMonthCalendar);
+new ResizeObserver(() => fitTaskCards()).observe(personalCalendar);
 
 function renderPersonalMonth() {
   const year = personalMonthDate.getFullYear();
@@ -2344,14 +2223,16 @@ function renderPersonalMonth() {
   const cellCount = Math.ceil(((first.getDay() + 6) % 7 + daysInMonth) / 7) * 7;
   personalMonthCalendar.style.setProperty('--personal-month-weeks', cellCount / 7);
   const fragment = document.createDocumentFragment();
+  const headings = [];
   for (let day = 0; day < 7; day++) {
     const heading = document.createElement('div');
     heading.className = 'personal-month-weekday';
     const date = new Date(start);
     date.setDate(date.getDate() + day);
     heading.textContent = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date);
-    fragment.append(heading);
+    headings.push(heading);
   }
+  const cells = [];
   for (let index = 0; index < cellCount; index++) {
     const date = new Date(start);
     date.setDate(date.getDate() + index);
@@ -2400,9 +2281,11 @@ function renderPersonalMonth() {
       items.append(button);
     });
     day.append(items);
-    fragment.append(day);
+    cells.push(day);
   }
-  personalMonthCalendar.replaceChildren(fragment);
+  const days = createPersonalDays(headings, cells);
+  fragment.append(days.head, days.scroller);
+  replacePersonalDays(personalMonthCalendar, fragment, days);
 }
 
 function renderPersonalCalendar() {
@@ -2417,8 +2300,6 @@ function renderPersonalCalendar() {
   document.getElementById('personal-hint').textContent = monthView
     ? 'Select a day to add a task. Select a task to change it.'
     : 'Long-press a time to add a schedule; keep holding and drag to set its length. Select a task to change it.';
-  // A glide or snap still running from the other view would move this one.
-  stopPersonalScrollMotion();
   if (monthView) renderPersonalMonth();
   else renderPersonalWeek();
 }

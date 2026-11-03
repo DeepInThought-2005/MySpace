@@ -483,13 +483,27 @@ body:has(.personal-view:not([hidden])) .topbar{height:76px}
 .personal-view-switch button[aria-pressed="true"]{background:#fff;color:#39333a;box-shadow:0 1px 5px rgba(40,35,40,.1)}
 .personal-hint{margin:8px 0 16px;color:#81777d;font-size:12px}
 .personal-calendar-scroll{height:min(70dvh,720px);min-height:350px;overflow:auto;border:1px solid #e7dfdc;border-radius:12px;background:#fff;scrollbar-gutter:stable}
-.personal-week-calendar{display:grid;grid-template-columns:68px repeat(7,minmax(108px,1fr));grid-template-rows:54px 1152px;min-width:824px}
-.personal-calendar-corner,.personal-day-heading{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #e7dfdc;background:#f9f6f4}
-.personal-calendar-corner{left:0;z-index:4;border-right:1px solid #e7dfdc}
+.personal-week-calendar{display:grid;grid-template-columns:68px minmax(0,1fr);grid-template-rows:54px 1152px;--personal-days:repeat(7,minmax(108px,1fr))}
+.personal-calendar-corner,.personal-day-heading{display:flex;align-items:center;justify-content:center;border-bottom:1px solid #e7dfdc;background:#f9f6f4}
+.personal-calendar-corner{position:sticky;top:0;z-index:4;border-right:1px solid #e7dfdc}
+/* Days: the outer area scrolls up and down; this strip scrolls the days sideways and snaps to
+   whole days. The headings follow it (see replacePersonalDays). */
+.personal-week-calendar,.personal-month-calendar{timeline-scope:--personal-days}
+.personal-days-head{position:sticky;top:0;z-index:2;overflow:hidden}
+.personal-days-head-row,.personal-days-grid{display:grid;grid-template-columns:var(--personal-days)}
+.personal-days-head-row{height:100%;will-change:transform}
+.personal-days-scroll{min-width:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;scroll-timeline:--personal-days x}
+.personal-days-scroll::-webkit-scrollbar{display:none}
+.personal-days-grid>*{scroll-snap-align:start}
+.personal-week-calendar .personal-days-grid{height:100%}
+@supports (animation-timeline:--personal-days){
+ .personal-days-head-row{animation:personal-days-follow linear both;animation-timeline:--personal-days}
+ @keyframes personal-days-follow{from{transform:translateX(0)}to{transform:translateX(calc(var(--days-max,0) * -1px))}}
+}
 .personal-day-heading{flex-direction:column;gap:2px;border-right:1px solid #e7dfdc;color:#766c72;font-size:11px}
 .personal-day-heading strong{font-size:15px;color:#39333a}
 .personal-day-heading.is-today strong{display:grid;place-items:center;min-width:25px;height:25px;border-radius:50%;background:#4c4249;color:#fff}
-.personal-time-axis{position:sticky;left:0;z-index:1;background:#faf8f7;border-right:1px solid #eee9e7}
+.personal-time-axis{position:relative;z-index:1;background:#faf8f7;border-right:1px solid #eee9e7}
 .personal-time-axis span{position:absolute;right:10px;color:#a1989c;font-size:10px;transform:translateY(-5px)}
 .personal-time-axis span.is-midnight{transform:none}
 .personal-day-track{position:relative;border-right:1px solid #f0ebea;background-color:#fff;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 47px,#eee8e6 47px,#eee8e6 48px);cursor:crosshair;touch-action:pan-x pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -509,8 +523,9 @@ html[data-theme="night"] .personal-time-selection{border-color:#e3b1a3;backgroun
 .personal-task>strong,.personal-task>span,.personal-task>small{flex-shrink:0}
 .personal-task small{max-width:100%;color:#725c61;font-size:10px;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere}
 .personal-task.is-done strong,.personal-month-task.is-done strong{text-decoration:line-through;text-decoration-thickness:1px;opacity:.78}
-.personal-month-calendar{display:grid;grid-template-columns:repeat(7,minmax(102px,1fr));grid-template-rows:44px repeat(var(--personal-month-weeks,5),minmax(112px,1fr));min-width:714px;min-height:100%}
-.personal-month-weekday{position:sticky;top:0;z-index:2;display:grid;place-items:center;border-right:1px solid #e7dfdc;border-bottom:1px solid #e7dfdc;background:#f9f6f4;color:#766c72;font-size:11px;font-weight:700}
+.personal-month-calendar{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:44px 1fr;min-height:100%;--personal-days:repeat(7,minmax(102px,1fr))}
+.personal-month-calendar .personal-days-grid{min-height:100%;grid-template-rows:repeat(var(--personal-month-weeks,5),minmax(112px,1fr))}
+.personal-month-weekday{display:grid;place-items:center;border-right:1px solid #e7dfdc;border-bottom:1px solid #e7dfdc;background:#f9f6f4;color:#766c72;font-size:11px;font-weight:700}
 .personal-month-day{min-height:112px;min-width:0;padding:7px;border-right:1px solid #e7dfdc;border-bottom:1px solid #e7dfdc;background:#fff;cursor:pointer}
 .personal-month-day:hover{background:#faf7f5}
 .personal-month-day.is-outside{background:#faf8f7;color:#a9a0a2}
@@ -763,8 +778,8 @@ body.app-fixed .calendar-day:has(.day-count){cursor:pointer}
 /* Schedule week and month on phones: Mon–Fri fill the screen; swipe left for Sat/Sun. */
 @media(max-width:600px){
  body.app-fixed .personal-calendar-scroll{container-type:inline-size}
- body.app-fixed .personal-week-calendar{grid-template-columns:40px repeat(7,calc((100cqw - 40px) / 5));min-width:0}
- body.app-fixed .personal-month-calendar{grid-template-columns:repeat(7,calc(100cqw / 5));min-width:0}
+ body.app-fixed .personal-week-calendar{grid-template-columns:40px minmax(0,1fr);--personal-days:repeat(7,calc((100cqw - 40px) / 5))}
+ body.app-fixed .personal-month-calendar{--personal-days:repeat(7,calc(100cqw / 5))}
  body.app-fixed .personal-month-day{padding:5px 4px}
  body.app-fixed .personal-month-task{grid-template-columns:minmax(0,1fr);gap:0;padding:3px 4px}
  body.app-fixed .personal-month-task strong{order:-1}
