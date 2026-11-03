@@ -2119,8 +2119,9 @@ function renderPersonalWeek() {
       button.setAttribute('aria-label', `${task.title}, ${task.start} to ${task.end}${task.description ? `, ${task.description}` : ''}${isDone ? ', done' : ''}${task.recurrence ? ', repeats weekly' : ''}. Edit task`);
       button.title = [task.title, task.description, `${task.start}–${task.end}`, task.recurrence ? 'Repeats every week' : ''].filter(Boolean).join('\n');
       const duration = minutesFor(task.end) - minutesFor(task.start);
+      // One element per line (title, time, each description line) so a card can drop whole
+      // lines from the bottom when they don't fit (see fitTaskCard) instead of cutting text.
       const title = document.createElement('strong');
-      // Markers in their own span so very thin cards can drop them and keep the title.
       if (isDone || task.recurrence) {
         const marks = document.createElement('span');
         marks.className = 'personal-task-marks';
@@ -2131,14 +2132,18 @@ function renderPersonalWeek() {
       button.append(title);
       if (duration >= 60 && (!task.description || duration >= 90)) {
         const time = document.createElement('span');
-        time.textContent = `${task.start}–${task.end}`;
+        time.className = 'personal-task-time';
+        const end = document.createElement('span');
+        end.className = 'personal-task-time-end';
+        end.textContent = `–${task.end}`;
+        time.append(task.start, end);
         button.append(time);
       }
-      if (task.description) {
+      (task.description || '').split('\n').map(line => line.trim()).filter(Boolean).forEach(line => {
         const description = document.createElement('small');
-        description.textContent = task.description;
+        description.textContent = line;
         button.append(description);
-      }
+      });
       button.addEventListener('click', event => { event.stopPropagation(); openPersonalTaskEditor(task); });
       track.append(button);
     });
@@ -2147,21 +2152,23 @@ function renderPersonalWeek() {
   personalCalendar.replaceChildren(fragment);
   personalScroll.scrollTop = personalWeekAutoScroll ? firstEventScrollTop(dates) : currentScroll;
   personalCalendarOpened = true;
-  requestAnimationFrame(markOverflowingTaskCards);
+  requestAnimationFrame(fitTaskCards);
 }
 
-// Cards whose text doesn't fit fade out at the bottom instead of cutting a line in half;
-// the fade goes away once the card is scrolled to its end.
-function markOverflowingTaskCards() {
-  personalCalendar.querySelectorAll('.personal-task').forEach(updateTaskCardFade);
+// Keep every card's text inside it: lines are single-line (ending in "…" when too wide), and
+// lines that don't fit the card's height are hidden from the bottom up (description, then
+// time). The full text stays in the tooltip and the editor.
+function fitTaskCard(card) {
+  const optional = [...card.querySelectorAll(':scope > small, :scope > .personal-task-time')];
+  // Side-by-side cards that are too thin for more than a letter or two show only the title.
+  const tooThin = card.clientWidth < 34;
+  optional.forEach(line => { line.hidden = tooThin; });
+  for (let i = optional.length - 1; i >= 0 && card.scrollHeight > card.clientHeight + 1; i--) optional[i].hidden = true;
 }
-function updateTaskCardFade(card) {
-  card.classList.toggle('is-overflowing', card.scrollHeight - card.scrollTop - card.clientHeight > 2);
+function fitTaskCards() {
+  personalCalendar.querySelectorAll('.personal-task').forEach(fitTaskCard);
 }
-personalCalendar.addEventListener('scroll', event => {
-  if (event.target.classList?.contains('personal-task')) updateTaskCardFade(event.target);
-}, { capture: true, passive: true });
-new ResizeObserver(() => markOverflowingTaskCards()).observe(personalCalendar);
+new ResizeObserver(() => fitTaskCards()).observe(personalCalendar);
 
 function renderPersonalMonth() {
   const year = personalMonthDate.getFullYear();
